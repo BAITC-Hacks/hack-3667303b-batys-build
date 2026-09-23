@@ -10,10 +10,14 @@
 import fs from "node:fs"
 import path from "node:path"
 
+import { DISTRICT_IDS, MEASURES, type Decision, type DistrictId } from "@/lib/domain/city"
 import { BASE_SCORE, scoreScenario } from "@/lib/engine/score"
 import { solve } from "@/lib/engine/solver"
+import { validateScenario } from "@/lib/engine/validate"
 
-const STEPS = [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+// Шаг мельче у левого края: допустимые наборы появляются только с 61 единицы,
+// и самый интересный участок кривой — сразу за этой границей.
+const STEPS = [61, 62, 63, 64, 65, 70, 75, 80, 85, 90, 95, 100]
 
 interface FrontierPoint {
   budget: number
@@ -45,8 +49,51 @@ for (const budget of STEPS) {
   console.log(`${String(budget).padStart(3)} → ${breakdown.score.toFixed(2)} (потрачено ${breakdown.cost})`)
 }
 
+/**
+ * Самый дешёвый допустимый набор. Это не то же самое, что стоимость лучшего
+ * набора при малом бюджете: минимум по деньгам и максимум по баллу — разные
+ * задачи, и путать их нельзя.
+ */
+function cheapestValid(): { cost: number; decisions: Decision[] } {
+  function* combos<T>(items: T[], k: number, start = 0, acc: T[] = []): Generator<T[]> {
+    if (acc.length === k) {
+      yield acc
+      return
+    }
+    for (let i = start; i <= items.length - (k - acc.length); i++) {
+      yield* combos(items, k, i + 1, [...acc, items[i]])
+    }
+  }
+
+  let best: { cost: number; decisions: Decision[] } | null = null
+  for (const combo of combos(MEASURES, 5)) {
+    const cost = combo.reduce((sum, m) => sum + m.cost, 0)
+    if (best && cost >= best.cost) continue
+
+    // Достаточно найти хотя бы одну раскладку по районам без конфликтов.
+    const assign = (index: number, acc: Decision[]): Decision[] | null => {
+      if (index === combo.length) return validateScenario(acc).length ? null : acc
+      const options: Array<DistrictId | null> = combo[index].scope === "district" ? DISTRICT_IDS : [null]
+      for (const districtId of options) {
+        const found = assign(index + 1, [...acc, { measureId: combo[index].id, districtId }])
+        if (found) return found
+      }
+      return null
+    }
+
+    const decisions = assign(0, [])
+    if (decisions) best = { cost, decisions }
+  }
+  return best!
+}
+
+const cheapest = cheapestValid()
+console.log(`
+Самый дешёвый допустимый набор: ${cheapest.cost}`)
+
 const payload = {
   baseScore: Math.round(BASE_SCORE * 100) / 100,
+  minimumCost: cheapest.cost,
   generatedAt: new Date().toISOString().slice(0, 10),
   points,
 }

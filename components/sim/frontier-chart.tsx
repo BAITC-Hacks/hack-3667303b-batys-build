@@ -54,9 +54,14 @@ export function FrontierChart({
   const linePath = POINTS.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.budget)},${sy(p.score)}`).join(" ")
   const areaPath = `${linePath} L${sx(X_MAX)},${sy(Y_MIN)} L${sx(X_MIN)},${sy(Y_MIN)} Z`
 
-  const cheapest = POINTS[0]
   const richest = POINTS[POINTS.length - 1]
-  const tail = Math.round((richest.score - POINTS[1].score) * 100) / 100
+  // Излом кривой: до этой точки деньги работают, после почти нет.
+  const knee = POINTS.find((p) => p.budget >= 70) ?? POINTS[POINTS.length - 1]
+  const perUnit = (from: (typeof POINTS)[number], to: (typeof POINTS)[number]) =>
+    (to.score - from.score) / (to.budget - from.budget)
+  const earlyRate = perUnit(POINTS[0], knee)
+  const lateRate = perUnit(knee, richest)
+  const ratio = Math.round(earlyRate / Math.max(lateRate, 0.0001))
 
   const active = hover === null ? null : POINTS[hover]
   const showMarker = valid && currentCost >= X_MIN
@@ -68,9 +73,11 @@ export function FrontierChart({
       </h2>
       <p className="mt-1 max-w-3xl text-xs text-muted">
         Верхняя граница посчитана полным перебором: для каждого потолка расходов это лучший
-        возможный результат. Отдача падает — от {POINTS[1].budget} до {richest.budget} единиц
-        бюджета прибавляется всего {fmt(tail)} балла. Дешевле {cheapest.cost} единиц
-        допустимого набора из пяти решений не существует вовсе.
+        возможный результат. Кривая начинается с {frontier.minimumCost} единиц — дешевле
+        допустимого набора из пяти решений не существует вовсе. Дальше отдача падает:
+        от {POINTS[0].budget} до {knee.budget} каждая единица бюджета приносит{" "}
+        {fmt(earlyRate, 3)} балла, а от {knee.budget} до {richest.budget} — всего{" "}
+        {fmt(lateRate, 3)}, то есть примерно в {ratio} раз меньше.
       </p>
 
       <div className="mt-3 rounded-lg border border-line bg-panel p-3">
@@ -78,7 +85,7 @@ export function FrontierChart({
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className="h-auto w-full"
           role="img"
-          aria-label={`Максимально достижимый балл растёт с ${fmt(cheapest.score)} при бюджете ${cheapest.budget} до ${fmt(richest.score)} при бюджете ${richest.budget}`}
+          aria-label={`Максимально достижимый балл растёт с ${fmt(POINTS[0].score)} при бюджете ${POINTS[0].budget} до ${fmt(richest.score)} при бюджете ${richest.budget}`}
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">

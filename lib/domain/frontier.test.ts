@@ -10,7 +10,7 @@ import test from "node:test"
 import frontier from "@/lib/domain/frontier.json"
 import { BASE_SCORE, scoreScenario } from "@/lib/engine/score"
 import { solve } from "@/lib/engine/solver"
-import { validateScenario } from "@/lib/engine/validate"
+import { totalCost, validateScenario } from "@/lib/engine/validate"
 import type { Decision } from "@/lib/domain/city"
 
 test("кривая не убывает с ростом бюджета", () => {
@@ -43,10 +43,33 @@ test("кривая не отстала от движка", () => {
 })
 
 test("отдача от бюджета падает", () => {
-  // Смысл всей картинки: первые единицы сверх минимума дают заметно больше,
-  // чем последние. Если это перестанет быть правдой, текст под графиком соврёт.
+  // Смысл всей картинки: единица бюджета в начале кривой покупает заметно больше
+  // балла, чем в конце. Считаем именно скорость, а не прирост на отрезке —
+  // отрезки разной длины, и сравнивать их напрямую было бы враньём.
   const points = frontier.points
-  const firstStep = points[1].score - points[0].score
-  const tail = points[points.length - 1].score - points[1].score
-  assert.ok(firstStep > tail, "текст под графиком обещает убывающую отдачу")
+  const knee = points.find((point) => point.budget >= 70) ?? points[points.length - 1]
+  const last = points[points.length - 1]
+
+  const earlyRate = (knee.score - points[0].score) / (knee.budget - points[0].budget)
+  const lateRate = (last.score - knee.score) / (last.budget - knee.budget)
+
+  assert.ok(earlyRate > lateRate * 2, "текст под графиком обещает резко убывающую отдачу")
+})
+
+test("минимальная стоимость допустимого набора совпадает с ТЗ", () => {
+  // ТЗ: «Самый дешёвый набор M9 + M11 + M10 + M12 + M4 стоит 61».
+  assert.equal(frontier.minimumCost, 61)
+
+  const cheapest: Decision[] = [
+    { measureId: "M9", districtId: "esil" },
+    { measureId: "M11", districtId: "esil" },
+    { measureId: "M10", districtId: "esil" },
+    { measureId: "M12", districtId: null },
+    { measureId: "M4", districtId: "esil" },
+  ]
+  assert.deepEqual(validateScenario(cheapest), [])
+  assert.equal(totalCost(cheapest), 61)
+
+  // Кривая обязана начинаться ровно там, где появляются допустимые наборы.
+  assert.equal(frontier.points[0].budget, frontier.minimumCost)
 })

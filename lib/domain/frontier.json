@@ -1,7 +1,120 @@
 {
   "baseScore": 52.56,
+  "minimumCost": 61,
   "generatedAt": "2026-09-23",
   "points": [
+    {
+      "budget": 61,
+      "score": 55.67,
+      "delta": 3.11,
+      "cost": 61,
+      "decisions": [
+        {
+          "measureId": "M4",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M11",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M12",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 62,
+      "score": 55.79,
+      "delta": 3.23,
+      "cost": 62,
+      "decisions": [
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M11",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M12",
+          "districtId": null
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 63,
+      "score": 55.79,
+      "delta": 3.23,
+      "cost": 62,
+      "decisions": [
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M11",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M12",
+          "districtId": null
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 64,
+      "score": 55.79,
+      "delta": 3.23,
+      "cost": 62,
+      "decisions": [
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M11",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M12",
+          "districtId": null
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
     {
       "budget": 65,
       "score": 55.79,
