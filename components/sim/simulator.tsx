@@ -14,6 +14,7 @@ import {
   GitCompare,
   HeartHandshake,
   Leaf,
+  ListChecks,
   MapPin,
   Plus,
   RotateCcw,
@@ -32,6 +33,7 @@ import {
   DECISION_COUNT,
   DIRECTION_LABELS,
   DISTRICTS,
+  HORIZON,
   INDICATOR_META,
   MAX_PER_DIRECTION,
   MEASURES,
@@ -50,6 +52,8 @@ import { cn, fmt, fmtDelta } from "@/lib/utils"
 
 import { AiAssistant } from "@/components/sim/ai-assistant"
 import { CanvasBoundary } from "@/components/sim/canvas-boundary"
+import { ChangesPanel } from "@/components/sim/changes-panel"
+import { DistrictMatrix } from "@/components/sim/district-matrix"
 import { DistrictsTable } from "@/components/sim/districts-table"
 import { FrontierChart } from "@/components/sim/frontier-chart"
 import { Scorecard } from "@/components/sim/scorecard"
@@ -102,12 +106,12 @@ const DIRECTION_SURFACE: Record<Direction, string> = {
   service: "bg-service/10 text-service",
 }
 
-type TabId = "city" | "frontier" | "districts"
+type TabId = "changes" | "districts" | "frontier"
 
 const TABS: Array<{ id: TabId; label: string; hint: string; icon: typeof Building2 }> = [
-  { id: "city", label: "Город", hint: "как решения выглядят на карте", icon: Building2 },
-  { id: "frontier", label: "Сколько стоит балл", hint: "потолок при каждом бюджете", icon: BarChart3 },
+  { id: "changes", label: "Что изменилось", hint: "показатели до и после", icon: ListChecks },
   { id: "districts", label: "Районы", hint: "все показатели и их сдвиг", icon: Table2 },
+  { id: "frontier", label: "Сколько стоит балл", hint: "потолок при каждом бюджете", icon: BarChart3 },
 ]
 
 export function Simulator({
@@ -121,7 +125,7 @@ export function Simulator({
   const [decisions, setDecisions] = useState<Decision[]>(initialDecisions)
   const [eventId, setEventId] = useState<string | null>(initialEventId)
   const [direction, setDirection] = useState<Direction | "all">("all")
-  const [tab, setTab] = useState<TabId>("city")
+  const [tab, setTab] = useState<TabId>("changes")
 
   const event = eventId ? (EVENT_BY_ID.get(eventId) ?? null) : null
   const breakdown = useMemo(() => scoreScenario(decisions, event), [decisions, event])
@@ -165,8 +169,39 @@ export function Simulator({
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
         <Onboarding onExample={() => setDecisions(EXAMPLE)} />
 
-        <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
-          <section id="decisions" aria-labelledby="step-1" className="appear appear-1 min-w-0">
+        {/* Город идёт первым: человек должен увидеть состояние, которым
+            управляет, раньше, чем список кнопок. Карта живёт от тех же решений,
+            что и балл, поэтому любое изменение видно сразу в двух местах. */}
+        <section aria-labelledby="city-now" className="appear appear-1 mt-8">
+          <div className="mb-5 flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-line bg-panel text-accent">
+              <Building2 className="size-4" aria-hidden />
+            </span>
+            <div>
+              <h2 id="city-now" className="text-lg font-bold leading-tight tracking-tight">
+                Астана сейчас
+              </h2>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                Высота и цвет кварталов — оценка района. Каждое принятое решение
+                добавляет на карту объекты и двигает балл.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
+            <CanvasBoundary>
+              <CityMap breakdown={breakdown} decisions={decisions} />
+            </CanvasBoundary>
+            <Scorecard breakdown={breakdown} complete={isComplete} violations={violations} />
+          </div>
+
+          <div className="mt-5">
+            <DistrictMatrix breakdown={breakdown} />
+          </div>
+        </section>
+
+        <div className="mt-10 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
+          <section id="decisions" aria-labelledby="step-1" className="appear appear-2 min-w-0">
             <StepHeading
               id="step-1"
               number={1}
@@ -212,10 +247,8 @@ export function Simulator({
               id="step-2"
               number={2}
               title="Ваш сценарий"
-              hint="Каждое решение меняет жизнь города."
+              hint="Пять решений, разбор аналитика и проверка на прочность."
             />
-
-            <Scorecard breakdown={breakdown} complete={isComplete} violations={violations} />
 
             <DecisionList decisions={decisions} contributions={contributions} onRemove={remove} />
 
@@ -280,15 +313,11 @@ export function Simulator({
 
           <div id="scenario-details" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="mt-4">
             <Reveal>
-            {tab === "city" && (
-              <CanvasBoundary>
-                <CityMap breakdown={breakdown} decisions={decisions} />
-              </CanvasBoundary>
-            )}
+            {tab === "changes" && <ChangesPanel breakdown={breakdown} contributions={contributions} />}
+            {tab === "districts" && <DistrictsTable breakdown={breakdown} />}
             {tab === "frontier" && (
               <FrontierChart currentCost={cost} currentScore={breakdown.score} valid={ready} />
             )}
-            {tab === "districts" && <DistrictsTable breakdown={breakdown} />}
             </Reveal>
           </div>
         </section>
@@ -698,6 +727,12 @@ function MeasureCard({
   onRemove: () => void
 }) {
   const Icon = DIRECTION_ICON[measure.direction]
+  const realizedShare = (HORIZON - measure.lag) / HORIZON
+
+  // Номер решения и район нужны на самой карточке: иначе, чтобы понять,
+  // куда именно применена мера, приходится искать её глазами в списке справа.
+  const pickedIndex = decisions.findIndex((decision) => decision.measureId === measure.id)
+  const pickedDistrict = DISTRICTS.find((d) => d.id === decisions[pickedIndex]?.districtId)
 
   // Для городских мер район не выбирается, поэтому проверяем сразу.
   const cityBlockReason = measure.scope === "city" ? canAdd(decisions, measure, null) : null
@@ -706,7 +741,16 @@ function MeasureCard({
   // лимит направления), и показать её один раз понятнее, чем пять всплывающих подсказок.
   const districtReasons =
     measure.scope === "district" ? DISTRICTS.map((d) => canAdd(decisions, measure, d.id)) : []
-  const districtBlockReason = districtReasons.every(Boolean) ? districtReasons[0] : null
+  const allDistrictsBlocked = districtReasons.length > 0 && districtReasons.every(Boolean)
+  const districtBlockReason = allDistrictsBlocked ? districtReasons[0] : null
+
+  // Частичная блокировка — отдельный случай: мера ещё доступна, но не везде.
+  // Про конфликт «парк против школы» человек должен узнать здесь, а не после клика.
+  const blockedDistricts = allDistrictsBlocked
+    ? []
+    : DISTRICTS.map((district, index) => ({ district, reason: districtReasons[index] })).filter(
+        (item): item is { district: (typeof DISTRICTS)[number]; reason: string } => Boolean(item.reason),
+      )
 
   return (
     <article
@@ -726,24 +770,46 @@ function MeasureCard({
       </div>
       <p className={cn("text-[10px] font-semibold", DIRECTION_COLOR[measure.direction])}>{DIRECTION_LABELS[measure.direction]} · {measure.id}</p>
       <h3 className="mt-1.5 text-sm font-semibold leading-snug">{measure.name}</h3>
-      <ul className="mt-3 space-y-1.5 text-xs text-muted" aria-label="Эффекты меры">
-        {Object.entries(measure.effects).map(([key, value]) => (
-          <li key={key} className="flex items-baseline justify-between gap-2">
-            <span>{INDICATOR_META[key as keyof typeof INDICATOR_META].label}</span>
-            <span className={cn("shrink-0 font-semibold tabular", value > 0 ? "text-gain" : "text-loss")}>
-              {value > 0 ? "+" : "−"}{Math.abs(value)}
-            </span>
-          </li>
-        ))}
+      <p className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-muted">
+        Эффект за {HORIZON} кварталов
+      </p>
+      <ul className="mt-1.5 space-y-1.5 text-xs text-muted" aria-label="Эффекты меры">
+        {Object.entries(measure.effects).map(([key, value]) => {
+          // Показываем то, что реально успеет сработать: «+20 по паспорту»
+          // при лаге в 4 квартала превращается в +10, и это должно быть видно
+          // до клика, а не после расчёта.
+          const realized = Math.round(value * realizedShare * 10) / 10
+          return (
+            <li key={key} className="flex items-baseline justify-between gap-2">
+              <span className="min-w-0 truncate">{INDICATOR_META[key as keyof typeof INDICATOR_META].label}</span>
+              <span className="shrink-0 tabular">
+                <span className={cn("font-semibold", value > 0 ? "text-gain" : "text-loss")}>
+                  {fmtDelta(realized, 1)}
+                </span>
+                {realizedShare < 1 && (
+                  <span className="ml-1 text-[10px] text-muted">
+                    из {value > 0 ? "+" : "−"}{Math.abs(value)}
+                  </span>
+                )}
+              </span>
+            </li>
+          )
+        })}
       </ul>
       <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted tabular">
-        <Clock3 className="size-3.5 shrink-0" aria-hidden /> Лаг эффекта: {measure.lag} кв.
+        <Clock3 className="size-3.5 shrink-0" aria-hidden />
+        Лаг {measure.lag} кв. — успевает {Math.round(realizedShare * 100)}%
       </p>
 
       <div className="mt-auto pt-4">
         {picked ? (
           <div className="flex min-h-10 items-center justify-between gap-1 border-t border-accent/15 pt-2">
-            <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent"><Check className="size-4" aria-hidden /> В сценарии</p>
+            <p className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-accent">
+              <Check className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">
+                Решение №{pickedIndex + 1} · {pickedDistrict?.name ?? "весь город"}
+              </span>
+            </p>
             <button type="button" onClick={onRemove} aria-label={`Убрать «${measure.name}» из сценария`} className="flex size-10 items-center justify-center rounded-md text-muted transition hover:bg-panel hover:text-loss">
               <Trash2 className="size-4" aria-hidden />
             </button>
@@ -767,8 +833,8 @@ function MeasureCard({
               {districtBlockReason ?? "Выберите район для применения"}
             </p>
             <div className="flex flex-wrap gap-1">
-              {DISTRICTS.map((district) => {
-                const reason = canAdd(decisions, measure, district.id)
+              {DISTRICTS.map((district, index) => {
+                const reason = districtReasons[index]
                 return (
                   <button
                     key={district.id}
@@ -777,13 +843,22 @@ function MeasureCard({
                     disabled={Boolean(reason)}
                     aria-label={`${measure.name}: ${district.name}`}
                     title={reason ?? `Применить в районе ${district.name}`}
-                    className="min-h-9 rounded-lg border border-line bg-background px-2 py-1.5 text-[11px] font-medium transition hover:border-accent/60 hover:bg-accent-soft hover:text-accent disabled:cursor-not-allowed disabled:opacity-45"
+                    className="min-h-9 rounded-lg border border-line bg-background px-2 py-1.5 text-[11px] font-medium transition hover:border-accent/60 hover:bg-accent-soft hover:text-accent disabled:cursor-not-allowed disabled:border-dashed disabled:opacity-45"
                   >
                     {district.name}
                   </button>
                 )
               })}
             </div>
+            {blockedDistricts.length > 0 && (
+              <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-loss">
+                {blockedDistricts.map(({ district, reason }) => (
+                  <li key={district.id}>
+                    {district.name} — {reason.charAt(0).toLowerCase() + reason.slice(1)}
+                  </li>
+                ))}
+              </ul>
+            )}
           </>
         )}
       </div>

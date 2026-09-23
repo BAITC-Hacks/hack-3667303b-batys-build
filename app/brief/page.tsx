@@ -166,6 +166,17 @@ export default async function BriefPage({
         <p className="mt-1 text-sm text-muted">{summary.tradeoff}</p>
       </section>
 
+      {summary.recommendations.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-accent">Что можно улучшить</h2>
+          <ul className="mt-2 space-y-1.5 text-sm">
+            {summary.recommendations.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="mt-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Районы</h2>
         <div

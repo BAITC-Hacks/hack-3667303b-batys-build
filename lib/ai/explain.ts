@@ -17,6 +17,8 @@ export interface Explanation {
   summary: string
   strengths: string[]
   risks: string[]
+  /** Что стоит попробовать в следующей версии сценария. */
+  recommendations: string[]
   tradeoff: string
   source: "ai" | "engine"
 }
@@ -78,6 +80,29 @@ export function describeScenario(
     risks.push(`Не израсходовано ${breakdown.budgetLeft} единиц бюджета — остаток не даёт никакого бонуса.`)
   }
 
+  const recommendations: string[] = []
+  if (breakdown.criticalPairs.length) {
+    const first = breakdown.criticalPairs[0]
+    recommendations.push(
+      `Закройте ${first.indicator} в ${first.district}: сейчас ${fmt(first.value, 1)}, и каждый показатель ниже 40 снимает по баллу.`,
+    )
+  }
+  if (worst && breakdown.weakest.name !== worst.district) {
+    recommendations.push(
+      `Попробуйте перенести «${worst.measureName}» из ${worst.district} в ${breakdown.weakest.name} — слабейший район весит 30% итога.`,
+    )
+  }
+  if (slow.length) {
+    recommendations.push(
+      `Замените одну медленную меру на быструю: «${slow[0].measureName}» отдаёт лишь ${Math.round(slow[0].realized * 100)}% эффекта за ${HORIZON} кварталов.`,
+    )
+  }
+  if (breakdown.budgetLeft > 0) {
+    recommendations.push(
+      `Свободны ${breakdown.budgetLeft} единиц бюджета — на них можно взять меру дороже вместо самой дешёвой в наборе.`,
+    )
+  }
+
   const tradeoff = worst
     ? `Главный компромисс: «${worst.measureName}» стоила ${worst.cost} единиц и принесла ${fmt(worst.shapley)} балла — эти деньги можно было направить в ${breakdown.weakest.name}.`
     : "Решения не приняты, компромиссов пока нет."
@@ -86,6 +111,7 @@ export function describeScenario(
     summary: `Сценарий набрал ${fmt(breakdown.score)} балла против ${fmt(breakdown.baseScore)} без вмешательства — прирост ${fmt(breakdown.delta)}. Израсходовано ${breakdown.cost} из ${BUDGET} единиц.`,
     strengths,
     risks,
+    recommendations,
     tradeoff,
     source: "engine",
   }
@@ -173,10 +199,14 @@ export async function explainScenario(
     "В summary обязательно назови score и delta к базе. Не выдумывай сравнений, которых нет в данных.",
     "",
     "Верни только JSON без markdown в таком виде:",
-    '{"summary": "...", "strengths": ["..."], "risks": ["..."], "tradeoff": "..."}',
+    '{"summary": "...", "strengths": ["..."], "risks": ["..."], "recommendations": ["..."], "tradeoff": "..."}',
     "summary — 2–3 предложения про итог и цену решения.",
     "strengths — 2–4 пункта, что в сценарии сработало и почему.",
     "risks — 2–4 пункта: что осталось недоделанным и чем это грозит.",
+    "recommendations — 2–3 пункта: что конкретно поменять в следующей версии сценария.",
+    "В recommendations называй меры и районы из данных, но не обещай, на сколько вырастет балл — этого числа у тебя нет.",
+    "Не предлагай то, что уже сделано: меры из decisions в сценарии и работают, советовать их повторно нельзя.",
+    "Бюджет ограничен, поэтому «выделить больше денег» — не рекомендация. Предлагай замену одной меры на другую или перенос меры в другой район.",
     "tradeoff — одно предложение про главный компромисс: от чего отказались ради результата.",
     "Формула балла: 70% среднего по городу, 30% слабейшего района, минус один балл за каждый показатель ниже 40.",
     "Эффект меры срезается лагом: доля realized показывает, сколько успевает сработать за горизонт.",
@@ -229,7 +259,10 @@ export function readExplanation(text: string | null): Omit<Explanation, "source"
   const tradeoff = typeof record.tradeoff === "string" ? record.tradeoff : ""
   const strengths = asList(record.strengths)
   const risks = asList(record.risks)
+  // Рекомендации появились позже остальных полей: их отсутствие не повод
+  // выбрасывать весь разбор, раздел просто не отрисуется.
+  const recommendations = asList(record.recommendations)
 
   if (summary.length < 20 || !strengths.length || !risks.length) return null
-  return { summary, strengths, risks, tradeoff }
+  return { summary, strengths, risks, recommendations, tradeoff }
 }

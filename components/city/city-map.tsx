@@ -220,7 +220,7 @@ export default function CityMap({
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-line bg-panel p-4 shadow-sm sm:p-5" aria-label="Карта города">
+    <section className="rounded-3xl border border-line bg-panel p-4 shadow-sm sm:p-5" aria-label="Карта города">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Город ваших решений</h2>

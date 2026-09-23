@@ -20,6 +20,7 @@ export const explanationResponseSchema = z.object({
   summary: z.string().trim().min(1),
   strengths: z.array(z.string()),
   risks: z.array(z.string()),
+  recommendations: z.array(z.string()).catch([]),
   tradeoff: z.string(),
   source: z.enum(["ai", "engine"]),
 })
