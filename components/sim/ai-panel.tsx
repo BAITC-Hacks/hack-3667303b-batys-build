@@ -102,6 +102,16 @@ export function AiPanel({
     if (!submitted || isAsking) return
     const snapshot = { scenarioKey, question: submitted }
     setAgent(snapshot)
+    // Поле очищаем сразу при отправке, а не после ответа. Вопрос уже виден
+    // отдельным сообщением, а очистка внутри асинхронного перехода зависела
+    // от того, совпадает ли текст в поле с отправленным, и на практике
+    // оставляла вопрос висеть в поле после ответа.
+    setQuestion("")
+
+    // Если отправить не удалось, возвращаем вопрос в поле — но только если
+    // человек не начал печатать следующий, иначе затрём его текст.
+    const restore = () => setQuestion((current) => (current ? current : submitted))
+
     startAsk(async () => {
       try {
         const response = await fetch("/api/agent", {
@@ -112,17 +122,19 @@ export function AiPanel({
         const data: unknown = await response.json().catch(() => null)
         if (!response.ok) {
           setAgent({ ...snapshot, error: responseError(data, "Советник временно недоступен. Попробуйте ещё раз.") })
+          restore()
           return
         }
         const parsed = agentResponseSchema.safeParse(data)
         if (!parsed.success) {
           setAgent({ ...snapshot, error: "Не удалось прочитать ответ советника. Попробуйте ещё раз." })
+          restore()
           return
         }
         setAgent({ ...snapshot, result: parsed.data })
-        setQuestion((current) => current.trim() === submitted ? "" : current)
       } catch {
         setAgent({ ...snapshot, error: "Не удалось подключиться. Попробуйте отправить вопрос ещё раз." })
+        restore()
       }
     })
   }
