@@ -25,6 +25,7 @@ import { attribute } from "@/lib/engine/attribution"
 import { cn, fmtDelta } from "@/lib/utils"
 
 import { AiPanel } from "@/components/sim/ai-panel"
+import { CanvasBoundary } from "@/components/sim/canvas-boundary"
 import { DistrictsTable } from "@/components/sim/districts-table"
 import { FrontierChart } from "@/components/sim/frontier-chart"
 import { Scorecard } from "@/components/sim/scorecard"
@@ -240,7 +241,9 @@ export function Simulator({
         valid={isComplete && violations.length === 0}
       />
 
-      <CityMap breakdown={breakdown} decisions={decisions} />
+      <CanvasBoundary>
+        <CityMap breakdown={breakdown} decisions={decisions} />
+      </CanvasBoundary>
 
       <DistrictsTable breakdown={breakdown} />
     </div>
