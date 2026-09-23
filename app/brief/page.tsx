@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { BUDGET } from "@/lib/domain/city"
 import { decodeDecisions, encodeDecisions } from "@/lib/domain/encode"
+import frontier from "@/lib/domain/frontier.json"
 import { EVENT_BY_ID } from "@/lib/domain/events"
 import { attribute } from "@/lib/engine/attribution"
 import { scoreScenario } from "@/lib/engine/score"
@@ -47,6 +48,12 @@ export default async function BriefPage({
   const summary = describeScenario(breakdown, contributions)
   const ranked = [...contributions].sort((a, b) => b.shapley - a.shapley)
 
+  // Потолок при том же бюджете: показывает, насколько близко набор к пределу
+  // возможного, а не только к базе. Кривая посчитана полным перебором заранее.
+  const reachable = frontier.points.filter((point) => point.budget >= breakdown.cost)
+  const ceiling = reachable.length ? reachable[0] : frontier.points[frontier.points.length - 1]
+  const gap = Math.round((ceiling.score - breakdown.score) * 100) / 100
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
       <div className="mb-6 flex items-start justify-between gap-4 print:hidden">
@@ -66,6 +73,19 @@ export default async function BriefPage({
           Израсходовано {breakdown.cost} из {BUDGET} единиц · среднее по городу {fmt(breakdown.dAvg)} ·
           слабейший район {breakdown.weakest.name} {fmt(breakdown.weakest.value)} ·
           критических показателей {breakdown.criticalCount}
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          Потолок при бюджете {ceiling.budget} — {fmt(ceiling.score)} балла.{" "}
+          {gap <= 0.01 ? (
+            <span className="font-semibold text-gain">
+              Этот сценарий на пределе возможного: лучше за эти деньги не собрать.
+            </span>
+          ) : (
+            <>
+              До него не хватает <span className="font-semibold tabular">{fmt(gap)}</span> — столько
+              ещё можно выжать, не увеличивая расходы.
+            </>
+          )}
         </p>
         {breakdown.event && (
           <p className="mt-2 rounded-md bg-warn/10 p-2 text-sm text-warn">
