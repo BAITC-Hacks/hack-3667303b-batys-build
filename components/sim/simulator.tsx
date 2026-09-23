@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
-import { RotateCcw, Sparkles, Trash2 } from "lucide-react"
+import { RotateCcw, Sparkles, Trash2, Zap } from "lucide-react"
 
 import {
   BUDGET,
@@ -17,7 +17,8 @@ import {
   type DistrictId,
   type Measure,
 } from "@/lib/domain/city"
-import { scoreScenario } from "@/lib/engine/score"
+import { CITY_EVENTS, EVENT_BY_ID } from "@/lib/domain/events"
+import { scoreScenario, type ScenarioBreakdown } from "@/lib/engine/score"
 import { canAdd, totalCost, validateScenario } from "@/lib/engine/validate"
 import { attribute } from "@/lib/engine/attribution"
 import { cn, fmtDelta } from "@/lib/utils"
@@ -55,8 +56,10 @@ const DIRECTION_ORDER: Direction[] = ["transport", "eco", "social", "safety", "s
 
 export function Simulator() {
   const [decisions, setDecisions] = useState<Decision[]>([])
+  const [eventId, setEventId] = useState<string | null>(null)
 
-  const breakdown = useMemo(() => scoreScenario(decisions), [decisions])
+  const event = eventId ? (EVENT_BY_ID.get(eventId) ?? null) : null
+  const breakdown = useMemo(() => scoreScenario(decisions, event), [decisions, event])
   const contributions = useMemo(() => attribute(decisions), [decisions])
   const cost = totalCost(decisions)
   const isComplete = decisions.length === DECISION_COUNT
@@ -104,6 +107,8 @@ export function Simulator() {
       </header>
 
       <BudgetBar cost={cost} count={decisions.length} />
+
+      <EventBar eventId={eventId} onChange={setEventId} breakdown={breakdown} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
         <section aria-label="Каталог мероприятий" className="order-2 lg:order-1">
@@ -232,6 +237,71 @@ function BudgetBar({ cost, count }: { cost: number; count: number }) {
       <p className="mt-2 text-xs text-muted">
         Принято решений: {count} из {DECISION_COUNT}. Остаток бюджета не сгорает и не даёт бонуса.
       </p>
+    </div>
+  )
+}
+
+/**
+ * Стресс-тест сценария: событие бьёт по показателям уже после того, как
+ * отработали меры, и показывает, насколько выбранный набор устойчив.
+ */
+function EventBar({
+  eventId,
+  onChange,
+  breakdown,
+}: {
+  eventId: string | null
+  onChange: (id: string | null) => void
+  breakdown: ScenarioBreakdown
+}) {
+  return (
+    <div className="mt-3 rounded-lg border border-line bg-panel p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 text-sm font-medium">
+          <Zap className="size-4 text-warn" aria-hidden />
+          Стресс-тест
+        </span>
+        {CITY_EVENTS.map((cityEvent) => (
+          <button
+            key={cityEvent.id}
+            type="button"
+            onClick={() => onChange(eventId === cityEvent.id ? null : cityEvent.id)}
+            title={cityEvent.description}
+            className={cn(
+              "rounded-md border px-2.5 py-1 text-xs font-medium transition",
+              eventId === cityEvent.id
+                ? "border-warn/60 bg-warn/15 text-warn"
+                : "border-line bg-panel-raised text-muted hover:border-warn/40 hover:text-foreground",
+            )}
+          >
+            {cityEvent.name}
+          </button>
+        ))}
+        {eventId && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="text-xs text-muted underline underline-offset-2 hover:text-foreground"
+          >
+            отменить
+          </button>
+        )}
+      </div>
+
+      {breakdown.event ? (
+        <p className="mt-2 text-xs text-muted">
+          {breakdown.event.description}{" "}
+          <span className="font-semibold text-loss tabular">
+            Балл просел на {fmtDelta(breakdown.event.impact)}.
+          </span>{" "}
+          {breakdown.event.mitigation}
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-muted">
+          Проверьте сценарий на прочность: событие бьёт по показателям сразу, без лага, и
+          показывает, что вы не предусмотрели.
+        </p>
+      )}
     </div>
   )
 }

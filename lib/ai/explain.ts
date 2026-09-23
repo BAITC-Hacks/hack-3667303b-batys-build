@@ -69,6 +69,11 @@ export function describeScenario(
       `Медленные меры: ${slow.map((d) => `«${d.measureName}» (лаг ${d.lag} кв., успевает на ${Math.round(d.realized * 100)}%)`).join(", ")}. За горизонт в ${HORIZON} кварталов они отдают меньше половины эффекта.`,
     )
   }
+  if (breakdown.event) {
+    risks.push(
+      `Стресс-тест «${breakdown.event.name}» отнял ${fmt(Math.abs(breakdown.event.impact))} балла. ${breakdown.event.mitigation}`,
+    )
+  }
   if (breakdown.budgetLeft > 0) {
     risks.push(`Не израсходовано ${breakdown.budgetLeft} единиц бюджета — остаток не даёт никакого бонуса.`)
   }
@@ -118,6 +123,7 @@ export async function explainScenario(
     fixedCriticals: breakdown.fixedCriticals,
     cost: breakdown.cost,
     budgetLeft: breakdown.budgetLeft,
+    event: breakdown.event,
     synergies: breakdown.synergies,
     decisions: breakdown.decisions,
     contributions,
@@ -142,6 +148,7 @@ export async function explainScenario(
     "tradeoff — одно предложение про главный компромисс: от чего отказались ради результата.",
     "Формула балла: 70% среднего по городу, 30% слабейшего района, минус один балл за каждый показатель ниже 40.",
     "Эффект меры срезается лагом: доля realized показывает, сколько успевает сработать за горизонт.",
+    "Если поле event не пустое, к сценарию применили стресс-тест: обязательно разбери, устоял ли он и чего не хватило.",
   ].join("\n")
 
   try {

@@ -24,6 +24,7 @@ import {
   type Indicator,
   type MeasureId,
 } from "@/lib/domain/city"
+import type { CityEvent } from "@/lib/domain/events"
 import { totalCost } from "@/lib/engine/validate"
 
 const D_COUNT = DISTRICTS.length
@@ -51,7 +52,7 @@ const clip = (value: number) => (value < 0 ? 0 : value > 100 ? 100 : value)
  * Применяет решения к базовым значениям. Горячий путь: солвер зовёт это
  * сотни тысяч раз, поэтому работаем с плоским Float64Array без аллокаций объектов.
  */
-function applyDecisions(decisions: Decision[]): Float64Array {
+function applyDecisions(decisions: Decision[], event?: CityEvent | null): Float64Array {
   const values = BASE_VALUES.slice()
   const chosen = new Set<MeasureId>()
 
@@ -94,13 +95,26 @@ function applyDecisions(decisions: Decision[]): Float64Array {
     }
   }
 
+  // Событие бьёт последним: авария случается уже поверх принятых мер
+  // и, в отличие от них, не масштабируется лагом.
+  if (event) {
+    const targets =
+      event.scope === "city"
+        ? DISTRICTS.map((_, index) => index)
+        : [DISTRICT_INDEX.get(event.districtId ?? DISTRICTS[0].id)!]
+    for (const [indicator, effect] of Object.entries(event.effects)) {
+      const k = INDICATOR_INDEX.get(indicator as Indicator)!
+      for (const d of targets) values[d * I_COUNT + k] += effect as number
+    }
+  }
+
   for (let i = 0; i < values.length; i++) values[i] = clip(values[i])
   return values
 }
 
 /** Быстрый путь: только итоговый балл. Используется солвером при переборе. */
-export function rawScore(decisions: Decision[]): number {
-  const values = applyDecisions(decisions)
+export function rawScore(decisions: Decision[], event?: CityEvent | null): number {
+  const values = applyDecisions(decisions, event)
   let dAvg = 0
   let dMin = Infinity
   let critical = 0
@@ -156,6 +170,8 @@ export interface ScenarioBreakdown {
   fixedCriticals: Array<{ district: string; indicator: string }>
   cost: number
   budgetLeft: number
+  /** Сработавшее городское событие и то, во сколько баллов оно обошлось. */
+  event: { id: string; name: string; description: string; mitigation: string; impact: number } | null
   synergies: Array<{ label: string; indicator: string; bonus: number; district: string }>
   districts: DistrictBreakdown[]
   decisions: Array<{
@@ -179,8 +195,8 @@ const round = (value: number, digits = 2) => {
  * Полный разбор сценария: все числа, которые нужны интерфейсу и языковой модели.
  * Это единственный числовой вход для ИИ — считать ему больше нечего.
  */
-export function scoreScenario(decisions: Decision[]): ScenarioBreakdown {
-  const after = applyDecisions(decisions)
+export function scoreScenario(decisions: Decision[], event?: CityEvent | null): ScenarioBreakdown {
+  const after = applyDecisions(decisions, event)
   const before = BASE_VALUES
 
   const districts: DistrictBreakdown[] = []
@@ -281,6 +297,16 @@ export function scoreScenario(decisions: Decision[]): ScenarioBreakdown {
     fixedCriticals,
     cost,
     budgetLeft: 100 - cost,
+    event: event
+      ? {
+          id: event.id,
+          name: event.name,
+          description: event.description,
+          mitigation: event.mitigation,
+          // Во сколько баллов обошлось событие при этом же наборе решений.
+          impact: round(rawScore(decisions, event) - rawScore(decisions)),
+        }
+      : null,
     synergies,
     districts,
     decisions: decisions.map((decision) => {

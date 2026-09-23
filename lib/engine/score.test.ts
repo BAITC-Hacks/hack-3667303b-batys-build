@@ -8,6 +8,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import type { Decision } from "@/lib/domain/city"
+import { EVENT_BY_ID } from "@/lib/domain/events"
 import { attribute } from "@/lib/engine/attribution"
 import { BASE_SCORE, scoreScenario } from "@/lib/engine/score"
 import { solve } from "@/lib/engine/solver"
@@ -152,4 +153,31 @@ test("сумма вкладов по Шепли равна общему прир
   const breakdown = scoreScenario(EXAMPLE)
   assert.ok(Math.abs(total - breakdown.delta) < 0.05)
   assert.equal(contributions.length, 5)
+})
+
+test("городское событие бьёт по баллу и не масштабируется лагом", () => {
+  const calm = scoreScenario(EXAMPLE)
+  const stressed = scoreScenario(EXAMPLE, EVENT_BY_ID.get("heating"))
+
+  assert.ok(stressed.score < calm.score)
+  assert.equal(stressed.event?.name, "Авария на теплосети в морозы")
+  assert.ok(stressed.event!.impact < 0)
+
+  // Событие «heating» бьёт по Алматы: C1 там 50, эффект −18 без всякого лага.
+  const almaty = stressed.districts.find((d) => d.id === "almaty")
+  assert.equal(almaty?.indicators.find((i) => i.key === "C1")?.after, 32)
+
+  // Другие районы событие не трогает.
+  const esil = stressed.districts.find((d) => d.id === "esil")
+  assert.equal(esil?.after, calm.districts.find((d) => d.id === "esil")?.after)
+})
+
+test("общегородское событие задевает все районы", () => {
+  const stressed = scoreScenario(EXAMPLE, EVENT_BY_ID.get("smog"))
+  for (const district of stressed.districts) {
+    const air = district.indicators.find((i) => i.key === "E2")!
+    const calmAir = scoreScenario(EXAMPLE).districts.find((d) => d.id === district.id)!
+      .indicators.find((i) => i.key === "E2")!
+    assert.ok(air.after < calmAir.after)
+  }
 })
