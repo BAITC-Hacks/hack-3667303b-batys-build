@@ -166,7 +166,7 @@ export function Simulator({
         <Onboarding onExample={() => setDecisions(EXAMPLE)} />
 
         <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
-          <section id="decisions" aria-labelledby="step-1" className="min-w-0">
+          <section id="decisions" aria-labelledby="step-1" className="appear appear-1 min-w-0">
             <StepHeading
               id="step-1"
               number={1}
@@ -193,7 +193,7 @@ export function Simulator({
               ))}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="stagger grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {visible.map((measure) => (
                 <MeasureCard
                   key={measure.id}
@@ -207,7 +207,7 @@ export function Simulator({
             </div>
           </section>
 
-          <aside id="scenario-summary" aria-labelledby="step-2" className="min-w-0 space-y-4">
+          <aside id="scenario-summary" aria-labelledby="step-2" className="stagger min-w-0 space-y-4">
             <StepHeading
               id="step-2"
               number={2}
@@ -231,7 +231,7 @@ export function Simulator({
           </aside>
         </div>
 
-        <section aria-labelledby="step-3" className="mt-10 rounded-2xl border border-line bg-panel p-4 shadow-sm sm:p-6">
+        <section aria-labelledby="step-3" className="appear appear-4 mt-10 rounded-2xl border border-line bg-panel p-4 shadow-sm sm:p-6">
           <StepHeading
             id="step-3"
             number={3}
@@ -279,8 +279,7 @@ export function Simulator({
           </div>
 
           <div id="scenario-details" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="mt-4">
-            {/* key по вкладке: при переключении содержимое проявляется заново. */}
-            <Reveal key={tab}>
+            <Reveal>
             {tab === "city" && (
               <CanvasBoundary>
                 <CityMap breakdown={breakdown} decisions={decisions} />
@@ -334,7 +333,7 @@ function StatusBar({
   const query = `s=${encodeDecisions(decisions)}${eventId ? `&event=${eventId}` : ""}`
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-panel/95 shadow-[0_2px_16px_#18332f04] backdrop-blur-lg">
+    <header className="appear-fade sticky top-0 z-30 border-b border-line bg-panel/95 shadow-[0_2px_16px_#18332f04] backdrop-blur-lg">
       <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="mr-auto flex items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white">
@@ -580,7 +579,7 @@ function DecisionList({
 /** Правила остаются на месте, чтобы первое решение не сдвигало весь каталог. */
 function Onboarding({ onExample }: { onExample: () => void }) {
   return (
-    <section aria-label="Как устроен симулятор" className="relative mt-6 overflow-hidden rounded-3xl border border-[#d4e8df] bg-[#e9f4ed] p-6 sm:p-8 lg:p-9">
+    <section aria-label="Как устроен симулятор" className="appear relative mt-6 overflow-hidden rounded-3xl border border-[#d4e8df] bg-[#e9f4ed] p-6 sm:p-8 lg:p-9">
       <div aria-hidden className="pointer-events-none absolute -right-20 -top-36 size-[420px] rounded-full border-[65px] border-white/35" />
       <div className="relative grid items-center gap-7 lg:grid-cols-[1fr_420px]">
         <div>
