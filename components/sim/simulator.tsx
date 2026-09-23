@@ -138,6 +138,8 @@ export function Simulator({
         </div>
       </header>
 
+      {decisions.length === 0 && <Onboarding onExample={() => setDecisions(EXAMPLE)} />}
+
       <BudgetBar cost={cost} count={decisions.length} />
 
       <EventBar eventId={eventId} onChange={setEventId} breakdown={breakdown} />
@@ -277,6 +279,40 @@ function BudgetBar({ cost, count }: { cost: number; count: number }) {
       <p className="mt-2 text-xs text-muted">
         Принято решений: {count} из {DECISION_COUNT}. Остаток бюджета не сгорает и не даёт бонуса.
       </p>
+    </div>
+  )
+}
+
+/**
+ * Подсказка для первого захода: исчезает, как только принято первое решение.
+ * Человеку, открывшему симулятор впервые, нужно тридцать секунд, чтобы понять
+ * правила, — на защите этих тридцати секунд может не быть.
+ */
+function Onboarding({ onExample }: { onExample: () => void }) {
+  return (
+    <div className="mb-3 rounded-lg border border-accent/30 bg-accent-soft p-4">
+      <p className="text-sm font-medium">У вас 100 условных единиц и ровно пять решений.</p>
+      <ol className="mt-2 grid gap-1.5 text-sm text-muted sm:grid-cols-3">
+        <li>
+          <span className="font-semibold text-foreground">1.</span> Выберите пять мероприятий
+          из каталога ниже — не больше двух по одному направлению.
+        </li>
+        <li>
+          <span className="font-semibold text-foreground">2.</span> Следите за баллом справа:
+          он падает, если слабейший район остаётся без внимания.
+        </li>
+        <li>
+          <span className="font-semibold text-foreground">3.</span> Нажмите «Разобрать сценарий» —
+          ИИ объяснит, чем вы заплатили за результат.
+        </li>
+      </ol>
+      <button
+        type="button"
+        onClick={onExample}
+        className="mt-3 rounded-md border border-accent/50 bg-panel px-3 py-1.5 text-sm font-medium text-accent transition hover:border-accent"
+      >
+        Показать готовый сценарий из ТЗ
+      </button>
     </div>
   )
 }
