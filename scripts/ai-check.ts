@@ -6,29 +6,15 @@
  * узнать о протухшем ключе заранее, чем на защите.
  */
 
-import fs from "node:fs"
-import path from "node:path"
-
 import { activeProvider, chatCompletion, isAiConfigured } from "@/lib/ai/provider"
 import { askAgent } from "@/lib/ai/agent"
 import { explainScenario } from "@/lib/ai/explain"
 import type { Decision } from "@/lib/domain/city"
 import { attribute } from "@/lib/engine/attribution"
 import { scoreScenario } from "@/lib/engine/score"
+import { loadEnv } from "./load-env"
 
-// Скрипт запускается вне Next, поэтому .env.local читаем сами. Провайдер смотрит
-// в process.env только в момент вызова, так что порядок импортов роли не играет.
-for (const file of [".env.local", ".env"]) {
-  const full = path.join(process.cwd(), file)
-  if (!fs.existsSync(full)) continue
-  for (const line of fs.readFileSync(full, "utf8").split(/\r?\n/)) {
-    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/)
-    if (!match) continue
-    const [, key, rawValue] = match
-    if (process.env[key]) continue
-    process.env[key] = rawValue.replace(/^["']|["']$/g, "")
-  }
-}
+loadEnv()
 
 const EXAMPLE = [
   { measureId: "M7", districtId: "nura" },

@@ -233,16 +233,31 @@ export interface AgentReply {
   trace: ToolOutcome[]
   /** Сценарий, который агент предлагает применить, если он его нашёл. */
   suggestion: Decision[] | null
+  /**
+   * Сырые ответы инструментов. Заполняются только по запросу: интерфейсу они не
+   * нужны, а проверке «не выдумал ли агент цифру» — нужны целиком.
+   */
+  toolOutputs?: string[]
+}
+
+export interface AgentOptions {
+  /** Вернуть сырые ответы инструментов для аудита. */
+  captureOutputs?: boolean
 }
 
 const MAX_STEPS = 4
 
-export async function askAgent(question: string, decisions: Decision[]): Promise<AgentReply> {
+export async function askAgent(
+  question: string,
+  decisions: Decision[],
+  options: AgentOptions = {},
+): Promise<AgentReply> {
   if (!isAiConfigured()) {
     return {
       reply: "Агент не подключён: не задан ключ ИИ-провайдера. Балл и разбор при этом считаются как обычно.",
       trace: [],
       suggestion: null,
+      ...(options.captureOutputs ? { toolOutputs: [] } : {}),
     }
   }
 
@@ -256,13 +271,19 @@ export async function askAgent(question: string, decisions: Decision[]): Promise
   ]
 
   const trace: ToolOutcome[] = []
+  const toolOutputs: string[] = []
   let suggestion: Decision[] | null = null
 
   for (let step = 0; step < MAX_STEPS; step++) {
     const result = await chatCompletion(messages, { tools: TOOLS, maxTokens: 1_200, temperature: 0.2 })
 
     if (!result.toolCalls.length) {
-      return { reply: result.content ?? "Не удалось сформулировать ответ.", trace, suggestion }
+      return {
+        reply: result.content ?? "Не удалось сформулировать ответ.",
+        trace,
+        suggestion,
+        ...(options.captureOutputs ? { toolOutputs } : {}),
+      }
     }
 
     messages.push({ role: "assistant", content: result.content, tool_calls: result.toolCalls })
@@ -288,8 +309,10 @@ export async function askAgent(question: string, decisions: Decision[]): Promise
         output = { error: error instanceof Error ? error.message : "Не удалось выполнить инструмент" }
       }
 
+      const serialized = JSON.stringify(output)
       trace.push({ name: call.function.name, summary: describeOutcome(call.function.name, output) })
-      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(output) })
+      toolOutputs.push(serialized)
+      messages.push({ role: "tool", tool_call_id: call.id, content: serialized })
     }
   }
 
@@ -297,6 +320,7 @@ export async function askAgent(question: string, decisions: Decision[]): Promise
     reply: "Агент сделал слишком много шагов и не пришёл к ответу. Переформулируйте вопрос.",
     trace,
     suggestion,
+    ...(options.captureOutputs ? { toolOutputs } : {}),
   }
 }
 
