@@ -297,7 +297,7 @@ export function AiPanel({
 
       <div className={cn(
         "shrink-0 border-t border-line bg-panel",
-        embedded ? "p-4 sm:px-5" : "mt-5 pt-4",
+        embedded ? "p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5" : "mt-5 pt-4",
       )}>
         <form
           onSubmit={(event) => {
