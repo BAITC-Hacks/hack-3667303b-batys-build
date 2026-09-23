@@ -3,22 +3,25 @@
 import { useState, useTransition } from "react"
 import { Bot, LoaderCircle, Send, Wand2 } from "lucide-react"
 
+import {
+  agentResponseSchema,
+  apiErrorSchema,
+  explanationResponseSchema,
+  type AgentResponse,
+  type ExplanationResponse,
+} from "@/lib/ai/schema"
 import type { Decision } from "@/lib/domain/city"
 import type { ScenarioBreakdown } from "@/lib/engine/score"
-import { cn, fmt, fmtDelta } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 
-interface Explanation {
-  summary: string
-  strengths: string[]
-  risks: string[]
-  tradeoff: string
-  source: "ai" | "engine"
+interface ResponseSnapshot<T> {
+  scenarioKey: string
+  result?: T
+  error?: string
 }
 
-interface AgentReply {
-  reply: string
-  trace: Array<{ name: string; summary: string }>
-  suggestion: Decision[] | null
+interface AgentExchange extends ResponseSnapshot<AgentResponse> {
+  question: string
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -29,161 +32,137 @@ const TOOL_LABELS: Record<string, string> = {
 }
 
 const SUGGESTIONS = [
+  "С чего начать улучшение города?",
   "Как улучшить мой сценарий, не выходя за бюджет?",
   "Почему Нура тянет балл вниз?",
-  "Что будет, если отказаться от ЛРТ?",
 ]
+
+function responseError(data: unknown, fallback: string): string {
+  const parsed = apiErrorSchema.safeParse(data)
+  return parsed.success ? parsed.data.error : fallback
+}
 
 export function AiPanel({
   decisions,
   breakdown,
   complete,
   onApply,
+  embedded = false,
 }: {
   decisions: Decision[]
   breakdown: ScenarioBreakdown
   complete: boolean
   onApply: (decisions: Decision[]) => void
+  embedded?: boolean
 }) {
-  const [explanation, setExplanation] = useState<Explanation | null>(null)
-  const [agent, setAgent] = useState<AgentReply | null>(null)
+  const [explanation, setExplanation] = useState<ResponseSnapshot<ExplanationResponse> | null>(null)
+  const [agent, setAgent] = useState<AgentExchange | null>(null)
   const [question, setQuestion] = useState("")
-  const [error, setError] = useState<string | null>(null)
   const [isExplaining, startExplain] = useTransition()
   const [isAsking, startAsk] = useTransition()
 
-  const explain = () =>
+  // Снимок связывает даже поздний ответ с тем набором, для которого его запросили.
+  const scenarioKey = JSON.stringify({ decisions, eventId: breakdown.event?.id ?? null })
+  const agentIsStale = agent !== null && agent.scenarioKey !== scenarioKey
+  const explanationIsStale = explanation !== null && explanation.scenarioKey !== scenarioKey
+
+  const explain = () => {
+    if (!complete || isExplaining) return
+    const snapshot = { scenarioKey }
+    setExplanation(snapshot)
     startExplain(async () => {
-      setError(null)
       try {
         const response = await fetch("/api/explain", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ decisions }),
         })
-        const data = await response.json()
+        const data: unknown = await response.json().catch(() => null)
         if (!response.ok) {
-          setError(data.error ?? "Не удалось получить разбор")
+          setExplanation({ ...snapshot, error: responseError(data, "Не удалось получить разбор. Попробуйте ещё раз.") })
           return
         }
-        setExplanation(data as Explanation)
+        const parsed = explanationResponseSchema.safeParse(data)
+        if (!parsed.success) {
+          setExplanation({ ...snapshot, error: "Не удалось прочитать разбор. Попробуйте ещё раз." })
+          return
+        }
+        setExplanation({ ...snapshot, result: parsed.data })
       } catch {
-        setError("Сеть недоступна")
-      }
-    })
-
-  const ask = (text: string) => {
-    if (!text.trim()) return
-    setQuestion("")
-    startAsk(async () => {
-      setError(null)
-      try {
-        const response = await fetch("/api/agent", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ question: text, decisions }),
-        })
-        const data = await response.json()
-        setAgent(data as AgentReply)
-      } catch {
-        setError("Сеть недоступна")
+        setExplanation({ ...snapshot, error: "Не удалось подключиться. Проверьте соединение и повторите попытку." })
       }
     })
   }
 
+  const ask = (text: string) => {
+    const submitted = text.trim()
+    if (!submitted || isAsking) return
+    const snapshot = { scenarioKey, question: submitted }
+    setAgent(snapshot)
+    startAsk(async () => {
+      try {
+        const response = await fetch("/api/agent", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ question: submitted, decisions }),
+        })
+        const data: unknown = await response.json().catch(() => null)
+        if (!response.ok) {
+          setAgent({ ...snapshot, error: responseError(data, "Советник временно недоступен. Попробуйте ещё раз.") })
+          return
+        }
+        const parsed = agentResponseSchema.safeParse(data)
+        if (!parsed.success) {
+          setAgent({ ...snapshot, error: "Не удалось прочитать ответ советника. Попробуйте ещё раз." })
+          return
+        }
+        setAgent({ ...snapshot, result: parsed.data })
+        setQuestion((current) => current.trim() === submitted ? "" : current)
+      } catch {
+        setAgent({ ...snapshot, error: "Не удалось подключиться. Попробуйте отправить вопрос ещё раз." })
+      }
+    })
+  }
+
+  const reply = agent?.result
+  const analysis = explanation?.result
+
   return (
-    <div className="rounded-2xl border border-line bg-panel p-5 shadow-sm">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-service/10 text-service">
-          <Bot className="size-5" aria-hidden />
-        </span>
-        <div>
-          <h2 className="text-sm font-semibold">ИИ-советник</h2>
-          <p className="mt-0.5 text-xs text-muted">Поможет увидеть сильные стороны и риски</p>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={explain}
-        disabled={!complete || isExplaining}
-        aria-busy={isExplaining}
-        className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-accent/20 bg-accent-soft px-3 py-2.5 text-sm font-semibold text-accent transition hover:border-accent/50 hover:bg-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {isExplaining ? (
-          <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
-        ) : (
-          <Wand2 className="size-4" aria-hidden />
-        )}
-        {isExplaining ? "Разбираю сценарий…" : "Разобрать сценарий"}
-      </button>
-      {!complete && (
-        <p className="mt-2 text-xs leading-relaxed text-muted">Выберите пять решений, чтобы получить разбор.</p>
-      )}
-
-      {explanation && (
-        <div className="mt-4 space-y-3.5 text-sm leading-relaxed" aria-live="polite">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-1 text-[10px] font-semibold",
-                explanation.source === "ai" ? "bg-accent-soft text-accent" : "bg-panel-raised text-muted",
-              )}
-            >
-              {explanation.source === "ai" ? "объяснила модель" : "разбор движка"}
+    <div className={cn(
+      embedded ? "flex h-full min-h-0 flex-col" : "rounded-2xl border border-line bg-panel p-5 shadow-sm",
+    )}>
+      <div className={cn(embedded && "min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5")}>
+        {!embedded && (
+          <div className="mb-5 flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-service/10 text-service">
+              <Bot className="size-5" aria-hidden />
             </span>
-            <span className="text-xs text-muted tabular">
-              {fmt(breakdown.score)} балла · {fmtDelta(breakdown.delta)}
-            </span>
+            <div>
+              <h2 className="text-sm font-semibold">ИИ-советник</h2>
+              <p className="mt-0.5 text-xs text-muted">Поможет выбрать решения для города</p>
+            </div>
           </div>
-          <p>{explanation.summary}</p>
-          <Block title="Сильные стороны" items={explanation.strengths} tone="gain" />
-          <Block title="Риски" items={explanation.risks} tone="loss" />
-          {explanation.tradeoff && (
-            <p className="rounded-xl bg-panel-raised p-3 text-xs leading-relaxed">
-              <span className="font-semibold">Компромисс: </span>
-              {explanation.tradeoff}
+        )}
+
+        {!agent && (
+          <div className="mb-4 rounded-2xl rounded-tl-sm bg-accent-soft p-4">
+            <p className="text-sm font-medium text-foreground">Здравствуйте! Давайте улучшим ваш город.</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted">
+              Помогу выбрать первые решения, сравнить варианты и разобраться в результате.
+              Можно спрашивать, даже если сценарий ещё не готов.
             </p>
-          )}
-        </div>
-      )}
-
-      <div className="mt-5 border-t border-line pt-4">
-        <p className="mb-3 text-xs leading-relaxed text-muted">
-          Задайте вопрос о вашем городе или выберите один из примеров.
-        </p>
-
-        {agent && (
-          <div className="mb-4 space-y-3" aria-live="polite">
-            <p className="rounded-xl bg-panel-raised p-3.5 text-sm leading-relaxed">{agent.reply}</p>
-            {agent.trace.length > 0 && (
-              <details className="rounded-lg border border-line px-3 py-2">
-                <summary className="cursor-pointer text-xs font-medium text-muted hover:text-foreground">
-                  На чём основан ответ
-                </summary>
-                <ul className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
-                  {agent.trace.map((step, index) => (
-                    <li key={index}>
-                      <span className="font-medium">{TOOL_LABELS[step.name] ?? step.name}</span> — {step.summary}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-            {agent.suggestion && (
-              <button
-                type="button"
-                onClick={() => onApply(agent.suggestion!)}
-                className="min-h-11 w-full rounded-xl border border-gain/20 bg-gain/10 px-3 py-2.5 text-xs font-semibold text-gain transition hover:border-gain/60"
-              >
-                Применить предложенный сценарий
-              </button>
-            )}
           </div>
         )}
 
-        {!agent && !isAsking && (
-          <div className="mb-3 grid gap-2">
+        {breakdown.event && (
+          <p className="mb-4 rounded-xl bg-warn/10 px-3 py-2.5 text-xs leading-relaxed text-warn">
+            Советник оценивает решения без стресс-теста «{breakdown.event.name}».
+            Его результаты могут отличаться от текущего балла города.
+          </p>
+        )}
+
+        {(!agent || agentIsStale) && !isAsking && (
+          <div className="mb-4 grid gap-2" aria-label="Примеры вопросов">
             {SUGGESTIONS.map((suggestion) => (
               <button
                 key={suggestion}
@@ -197,6 +176,111 @@ export function AiPanel({
           </div>
         )}
 
+        {agent && (
+          <div className="mb-4 space-y-3">
+            {agentIsStale && (
+              <p className="rounded-lg bg-warn/10 px-3 py-2 text-xs leading-relaxed text-warn" role="status">
+                Сценарий изменился. Этот вопрос и ответ относятся к предыдущему набору решений или стресс-тесту.
+                Задайте новый вопрос, чтобы учесть изменения.
+              </p>
+            )}
+            <div className="ml-6 rounded-2xl rounded-tr-sm bg-accent px-4 py-3 text-sm leading-relaxed text-white">
+              <span className="sr-only">Ваш вопрос: </span>
+              {agent.question}
+            </div>
+            {reply && (
+              <div className="space-y-3" aria-live="polite">
+                <p className="mr-3 whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-panel-raised p-4 text-sm leading-relaxed">
+                  <span className="sr-only">Советник: </span>
+                  {reply.reply}
+                </p>
+                {reply.trace.length > 0 && (
+                  <details className="rounded-lg border border-line px-3 py-2">
+                    <summary className="cursor-pointer text-xs font-medium text-muted hover:text-foreground">
+                      На чём основан ответ
+                    </summary>
+                    <ul className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
+                      {reply.trace.map((step, index) => (
+                        <li key={index}>
+                          <span className="font-medium">{TOOL_LABELS[step.name] ?? step.name}</span> — {step.summary}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {reply.suggestion && !agentIsStale && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (reply.suggestion) onApply(reply.suggestion)
+                    }}
+                    className="min-h-11 w-full rounded-xl border border-gain/20 bg-gain/10 px-3 py-2.5 text-xs font-semibold text-gain transition hover:border-gain/60"
+                  >
+                    Применить предложенный сценарий
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-5 border-t border-line pt-4">
+          <p className="text-xs font-semibold text-foreground">Разбор выбранных решений</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            {complete
+              ? "Посмотрите сильные стороны, риски и главный компромисс вашего набора."
+              : "Когда выберете пять решений, здесь появится полный разбор. Задавать вопросы можно уже сейчас."}
+          </p>
+          <button
+            type="button"
+            onClick={explain}
+            disabled={!complete || isExplaining}
+            aria-busy={isExplaining}
+            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-accent/20 bg-accent-soft px-3 py-2.5 text-sm font-semibold text-accent transition hover:border-accent/50 hover:bg-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isExplaining ? (
+              <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
+            ) : (
+              <Wand2 className="size-4" aria-hidden />
+            )}
+            {isExplaining ? "Разбираем сценарий…" : "Разобрать сценарий"}
+          </button>
+          {explanationIsStale && (
+            <p className="mt-3 text-xs leading-relaxed text-warn" role="status">
+              Разбор относится к предыдущему сценарию. Запросите его снова, чтобы учесть изменения.
+            </p>
+          )}
+          {explanation?.error && (
+            <p className="mt-3 rounded-lg bg-loss/5 p-3 text-xs leading-relaxed text-loss" role="alert">
+              {explanation.error}
+            </p>
+          )}
+          {analysis && (
+            <div className="mt-4 space-y-3.5 text-sm leading-relaxed" aria-live="polite">
+              <span className={cn(
+                "inline-block rounded-full px-2.5 py-1 text-[10px] font-semibold",
+                analysis.source === "ai" ? "bg-accent-soft text-accent" : "bg-panel-raised text-muted",
+              )}>
+                {analysis.source === "ai" ? "Объяснила модель" : "Разбор движка"}
+              </span>
+              <p>{analysis.summary}</p>
+              <Block title="Сильные стороны" items={analysis.strengths} tone="gain" />
+              <Block title="Риски" items={analysis.risks} tone="loss" />
+              {analysis.tradeoff && (
+                <p className="rounded-xl bg-panel-raised p-3 text-xs leading-relaxed">
+                  <span className="font-semibold">Компромисс: </span>
+                  {analysis.tradeoff}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className={cn(
+        "shrink-0 border-t border-line bg-panel",
+        embedded ? "p-4 sm:px-5" : "mt-5 pt-4",
+      )}>
         <form
           onSubmit={(event) => {
             event.preventDefault()
@@ -208,9 +292,9 @@ export function AiPanel({
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             maxLength={600}
-            placeholder="Например: где взять ещё балл?"
-            aria-label="Вопрос агенту"
-            className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-panel-raised/60 px-3 py-2.5 text-sm outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/15"
+            placeholder="Спросите о вашем городе…"
+            aria-label="Вопрос советнику"
+            className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-panel-raised/60 px-3 py-2.5 text-base outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/15"
           />
           <button
             type="submit"
@@ -225,8 +309,14 @@ export function AiPanel({
             )}
           </button>
         </form>
-        {isAsking && <p className="mt-2 text-xs text-accent" role="status">Проверяем варианты для вашего сценария…</p>}
-        {error && <p className="mt-3 rounded-lg bg-loss/5 p-3 text-xs text-loss" role="alert">{error}</p>}
+        {isAsking && (
+          <p className="mt-2 text-xs text-accent" role="status">Проверяем варианты для вашего сценария…</p>
+        )}
+        {agent?.error && (
+          <p className="mt-3 rounded-lg bg-loss/5 p-3 text-xs leading-relaxed text-loss" role="alert">
+            {agent.error}
+          </p>
+        )}
       </div>
     </div>
   )
