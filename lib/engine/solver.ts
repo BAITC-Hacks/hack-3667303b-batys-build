@@ -57,12 +57,40 @@ function* combinations<T>(items: T[], k: number, start = 0, acc: T[] = []): Gene
 }
 
 /**
+ * Перебор детерминированный, поэтому одинаковые ограничения незачем считать дважды.
+ * Агент за один диалог легко зовёт солвер несколько раз, и каждый прогон — это
+ * секунды процессорного времени; кэш убирает их полностью.
+ */
+const cache = new Map<string, SolveResult[]>()
+const CACHE_LIMIT = 64
+
+const cacheKey = (options: SolveOptions): string =>
+  JSON.stringify([
+    options.budget ?? BUDGET,
+    (options.include ?? []).map((d) => `${d.measureId}:${d.districtId ?? ""}`).sort(),
+    [...(options.exclude ?? [])].sort(),
+    options.limit ?? 5,
+  ])
+
+export function solve(options: SolveOptions = {}): SolveResult[] {
+  const key = cacheKey(options)
+  const cached = cache.get(key)
+  // Копия списка: вызывающий код волен его сортировать, кэш от этого не поедет.
+  if (cached) return [...cached]
+
+  const results = solveUncached(options)
+  if (cache.size >= CACHE_LIMIT) cache.clear()
+  cache.set(key, results)
+  return [...results]
+}
+
+/**
  * Находит лучшие сценарии при заданных ограничениях.
  * Отсечение идёт до раскладки по районам: сначала отбрасываем сочетания
  * по стоимости, лимиту направлений и конфликту M1/M3, и только выжившие
  * разворачиваем по районам.
  */
-export function solve(options: SolveOptions = {}): SolveResult[] {
+function solveUncached(options: SolveOptions): SolveResult[] {
   const budget = options.budget ?? BUDGET
   const include = options.include ?? []
   const excluded = new Set(options.exclude ?? [])

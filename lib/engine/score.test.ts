@@ -181,3 +181,15 @@ test("общегородское событие задевает все райо
     assert.ok(air.after < calmAir.after)
   }
 })
+
+test("повторный перебор с теми же ограничениями отдаёт тот же результат мгновенно", () => {
+  const first = solve({ budget: 80, limit: 3 })
+  const startedAt = Date.now()
+  const second = solve({ budget: 80, limit: 3 })
+  const elapsed = Date.now() - startedAt
+
+  assert.deepEqual(second, first)
+  assert.ok(elapsed < 50, `повтор занял ${elapsed} мс — кэш не сработал`)
+  // Порядок ограничений не должен рождать новый ключ кэша.
+  assert.deepEqual(solve({ limit: 3, budget: 80 }), first)
+})
