@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
-import { ArrowUpRight, Bot, MessageCircle, X } from "lucide-react"
+import { Bot, MessageCircle, X } from "lucide-react"
 
 import { BUDGET, DECISION_COUNT, type Decision } from "@/lib/domain/city"
 import { encodeDecisions } from "@/lib/domain/encode"
 import type { ScenarioBreakdown } from "@/lib/engine/score"
 import { AiPanel } from "@/components/sim/ai-panel"
+import { ScenarioAnalysis } from "@/components/sim/scenario-analysis"
 
 export function AiAssistant({
   decisions,
@@ -59,24 +60,15 @@ export function AiAssistant({
 
   return (
     <>
+      {/* Главный вход в ИИ — готовый разбор, а не приглашение в чат: человеку
+          после пяти решений нужен вывод, а диалог остаётся вторым слоем. */}
       {inlineEntry && (
-        <button
-          type="button"
-          onClick={(event) => show(event.currentTarget)}
-          aria-haspopup="dialog"
-          aria-controls={id}
-          aria-expanded={open}
-          className="group flex w-full items-center gap-3 rounded-2xl border border-accent/20 bg-accent-soft/60 p-4 text-left transition hover:border-accent/50 hover:bg-accent-soft print:hidden"
-        >
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-panel text-accent">
-            <Bot className="size-5" aria-hidden />
-          </span>
-          <span className="flex-1">
-            <span className="block text-sm font-semibold">Разберёмся вместе?</span>
-            <span className="mt-1 block text-xs leading-relaxed text-muted">Спросите ИИ-советника о решениях, бюджете или результате.</span>
-          </span>
-          <ArrowUpRight className="size-4 shrink-0 text-accent" aria-hidden />
-        </button>
+        <ScenarioAnalysis
+          decisions={decisions}
+          breakdown={breakdown}
+          complete={complete}
+          onDiscuss={show}
+        />
       )}
 
       <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2 sm:right-6 print:hidden">
@@ -86,7 +78,7 @@ export function AiAssistant({
         <button
           type="button"
           onClick={(event) => show(event.currentTarget)}
-          aria-label="Открыть ИИ-советника"
+          aria-label="Открыть городского аналитика"
           aria-haspopup="dialog"
           aria-controls={id}
           aria-expanded={open}
@@ -94,8 +86,8 @@ export function AiAssistant({
         >
           <MessageCircle className="size-6 shrink-0" strokeWidth={1.8} aria-hidden />
           <span>
-            <span className="block text-sm font-semibold">ИИ-советник</span>
-            <span className="mt-0.5 hidden text-[11px] text-white/85 sm:block">Нужна помощь? Я рядом</span>
+            <span className="block text-sm font-semibold">Городской аналитик</span>
+            <span className="mt-0.5 hidden text-[11px] text-white/85 sm:block">Спросить о сценарии</span>
           </span>
         </button>
       </div>
@@ -133,14 +125,14 @@ export function AiAssistant({
               <Bot className="size-6" aria-hidden />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 id={`${id}-title`} className="text-base font-semibold">ИИ-советник</h2>
-              <p id={`${id}-description`} className="mt-0.5 text-xs text-muted">Помогу разобраться с городом</p>
+              <h2 id={`${id}-title`} className="text-base font-semibold">Городской аналитик</h2>
+              <p id={`${id}-description`} className="mt-0.5 text-xs text-muted">Отвечает на вопросы по вашему сценарию</p>
             </div>
             <button
               type="button"
               autoFocus
               onClick={() => dialogRef.current?.close()}
-              aria-label="Закрыть ИИ-советника"
+              aria-label="Закрыть городского аналитика"
               className="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-panel hover:text-foreground"
             >
               <X className="size-5" aria-hidden />
@@ -154,7 +146,14 @@ export function AiAssistant({
           </div>
           {/* Панель остаётся смонтированной: закрытие окна не теряет черновик и ответ. */}
           <div className="min-h-0 flex-1">
-            <AiPanel decisions={decisions} breakdown={breakdown} complete={complete} onApply={apply} embedded />
+            <AiPanel
+              decisions={decisions}
+              breakdown={breakdown}
+              complete={complete}
+              onApply={apply}
+              embedded
+              analysis={!inlineEntry}
+            />
           </div>
         </div>
       </dialog>

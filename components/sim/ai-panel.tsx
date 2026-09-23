@@ -48,12 +48,15 @@ export function AiPanel({
   complete,
   onApply,
   embedded = false,
+  analysis: withAnalysis = true,
 }: {
   decisions: Decision[]
   breakdown: ScenarioBreakdown
   complete: boolean
   onApply: (decisions: Decision[]) => void
   embedded?: boolean
+  /** Отключается, когда разбор уже показан отдельным блоком на странице. */
+  analysis?: boolean
 }) {
   const [explanation, setExplanation] = useState<ResponseSnapshot<ExplanationResponse> | null>(null)
   const [agent, setAgent] = useState<AgentExchange | null>(null)
@@ -138,18 +141,18 @@ export function AiPanel({
               <Bot className="size-5" aria-hidden />
             </span>
             <div>
-              <h2 className="text-sm font-semibold">ИИ-советник</h2>
-              <p className="mt-0.5 text-xs text-muted">Поможет выбрать решения для города</p>
+              <h2 className="text-sm font-semibold">Городской аналитик</h2>
+              <p className="mt-0.5 text-xs text-muted">Считает движок, объясняет модель</p>
             </div>
           </div>
         )}
 
         {!agent && (
           <div className="mb-4 rounded-2xl rounded-tl-sm bg-accent-soft p-4">
-            <p className="text-sm font-medium text-foreground">Здравствуйте! Давайте улучшим ваш город.</p>
+            <p className="text-sm font-medium text-foreground">Спросите о сценарии.</p>
             <p className="mt-1.5 text-sm leading-relaxed text-muted">
-              Помогу выбрать первые решения, сравнить варианты и разобраться в результате.
-              Можно спрашивать, даже если сценарий ещё не готов.
+              Я работаю поверх расчёта движка: могу сравнить варианты, найти лучший набор
+              под ваш бюджет и объяснить, откуда взялось число. Сценарий может быть и незаконченным.
             </p>
           </div>
         )}
@@ -224,6 +227,7 @@ export function AiPanel({
           </div>
         )}
 
+        {withAnalysis && (
         <div className="mt-5 border-t border-line pt-4">
           <p className="text-xs font-semibold text-foreground">Разбор выбранных решений</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
@@ -266,6 +270,7 @@ export function AiPanel({
               <p>{analysis.summary}</p>
               <Block title="Сильные стороны" items={analysis.strengths} tone="gain" />
               <Block title="Риски" items={analysis.risks} tone="loss" />
+              <Block title="Что можно улучшить" items={analysis.recommendations} tone="accent" />
               {analysis.tradeoff && (
                 <p className="rounded-xl bg-panel-raised p-3 text-xs leading-relaxed">
                   <span className="font-semibold">Компромисс: </span>
@@ -275,6 +280,7 @@ export function AiPanel({
             </div>
           )}
         </div>
+        )}
       </div>
 
       <div className={cn(
@@ -322,11 +328,13 @@ export function AiPanel({
   )
 }
 
-function Block({ title, items, tone }: { title: string; items: string[]; tone: "gain" | "loss" }) {
+const BLOCK_TONE = { gain: "text-gain", loss: "text-loss", accent: "text-accent" } as const
+
+function Block({ title, items, tone }: { title: string; items: string[]; tone: keyof typeof BLOCK_TONE }) {
   if (!items.length) return null
   return (
     <div>
-      <p className={cn("text-xs font-semibold", tone === "gain" ? "text-gain" : "text-loss")}>{title}</p>
+      <p className={cn("text-xs font-semibold", BLOCK_TONE[tone])}>{title}</p>
       <ul className="mt-1.5 space-y-1.5 text-xs leading-relaxed text-muted">
         {items.map((item, index) => (
           <li key={index} className="flex gap-1.5">

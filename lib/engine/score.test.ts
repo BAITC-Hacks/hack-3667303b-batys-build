@@ -193,3 +193,50 @@ test("повторный перебор с теми же ограничения�
   // Порядок ограничений не должен рождать новый ключ кэша.
   assert.deepEqual(solve({ limit: 3, budget: 80 }), first)
 })
+
+test("разбор показывает критические показатели до и после", () => {
+  // В Нуре школы (38) и поликлиники (35) ниже порога в 40 — это и есть «2 → 0».
+  assert.equal(scoreScenario([]).criticalBefore, 2)
+  const example = scoreScenario(EXAMPLE)
+  assert.equal(example.criticalBefore, 2)
+  assert.equal(example.criticalCount, 0)
+  assert.equal(example.fixedCriticals.length, 2)
+})
+
+test("изменившиеся показатели перечислены без неизменившихся", () => {
+  const breakdown = scoreScenario(EXAMPLE)
+  assert.equal(scoreScenario([]).changedIndicators.length, 0)
+
+  // Четыре показателя в Нуре, по одному C2 в каждом из пяти районов, два в Сарыарке.
+  assert.equal(breakdown.changedIndicators.length, 11)
+  assert.ok(breakdown.changedIndicators.every((change) => change.delta !== 0))
+
+  const schools = breakdown.changedIndicators.find(
+    (change) => change.districtId === "nura" && change.key === "S1",
+  )
+  // 16 × (8 − 3) / 8 = 10 — лаг срезает треть эффекта.
+  assert.deepEqual(
+    { before: schools?.before, after: schools?.after, delta: schools?.delta },
+    { before: 38, after: 48, delta: 10 },
+  )
+})
+
+test("у каждой меры виден полный и реализованный эффект", () => {
+  const breakdown = scoreScenario(EXAMPLE)
+  const school = breakdown.decisions.find((d) => d.measureId === "M7")!
+  assert.equal(school.realized, 0.625)
+  assert.deepEqual(school.effects, [
+    { key: "S1", label: "Школы и детсады", full: 16, realized: 10, before: 38, after: 48 },
+  ])
+
+  // Городская мера бьёт по всем районам сразу, поэтому одного «было» у неё нет.
+  const platform = breakdown.decisions.find((d) => d.measureId === "M12")!
+  assert.deepEqual(platform.effects, [
+    { key: "C2", label: "Скорость ответа на обращения", full: 5, realized: 4.4, before: null, after: null },
+  ])
+
+  // Safe City и платформа обращений — пара из таблицы синергий.
+  assert.deepEqual(breakdown.decisions.find((d) => d.measureId === "M10")!.synergies, [
+    { label: "Safe City + платформа обращений", indicator: "Безопасность улиц", bonus: 2 },
+  ])
+})

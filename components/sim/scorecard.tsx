@@ -1,12 +1,13 @@
 "use client"
 
-import { AlertTriangle, CheckCircle2, Link2, TrendingUp } from "lucide-react"
+import { AlertTriangle, ArrowRight, CheckCircle2, Link2, TrendingUp } from "lucide-react"
 
 import type { ScenarioBreakdown } from "@/lib/engine/score"
 import type { Violation } from "@/lib/engine/validate"
 import { cn, fmt, fmtDelta } from "@/lib/utils"
 
 import { AnimatedNumber } from "@/components/ui/animated-number"
+import { ScoreFormula } from "@/components/sim/score-formula"
 
 export function Scorecard({
   breakdown,
@@ -49,7 +50,11 @@ export function Scorecard({
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+            {/* «Было → стало» вместо одинокого числа: без точки отсчёта балл
+                ни о чём не говорит, а её глаз ищет в первую очередь. */}
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-2">
+              <span className="text-2xl font-medium text-muted tabular">{fmt(breakdown.baseScore)}</span>
+              <ArrowRight className="size-5 shrink-0 self-center text-muted" aria-hidden />
               <AnimatedNumber
                 value={breakdown.score}
                 format={(current) => fmt(current)}
@@ -61,11 +66,11 @@ export function Scorecard({
                   positive ? "bg-gain/10 text-gain" : breakdown.delta < 0 ? "bg-loss/10 text-loss" : "bg-panel-raised text-muted",
                 )}
               >
-                {fmtDelta(breakdown.delta)} к базе
+                {fmtDelta(breakdown.delta)}
               </span>
             </div>
-            <p className="mt-2 text-xs text-muted tabular">
-              База без решений — {fmt(breakdown.baseScore)}
+            <p className="mt-2 text-xs text-muted">
+              Слева — город без вмешательства, справа — с вашими решениями
             </p>
 
             <dl className="mt-5 divide-y divide-line rounded-xl bg-panel-raised/60 px-3.5 text-sm">
@@ -80,8 +85,8 @@ export function Scorecard({
                 hint="вес 30%"
               />
               <Row
-                label="Критические показатели"
-                value={String(breakdown.criticalCount)}
+                label="Показателей ниже 40"
+                value={`${breakdown.criticalBefore} → ${breakdown.criticalCount}`}
                 hint="−1 балл за каждый"
                 alert={breakdown.criticalCount > 0}
               />
@@ -127,6 +132,10 @@ export function Scorecard({
             Это предварительный результат. Выберите все пять решений, чтобы завершить сценарий.
           </p>
         )}
+
+        <div className="mt-4">
+          <ScoreFormula />
+        </div>
       </div>
     </div>
   )
