@@ -79,6 +79,72 @@
   background-color: #c5ebdd;
 }
 
+/*
+ * Появление при загрузке страницы.
+ *
+ * Анимация на чистом CSS запускается ровно тогда, когда элемент создаётся,
+ * то есть один раз за загрузку. Действия пользователя её не перезапускают:
+ * карточки и панели остаются смонтированными, меняется только их содержимое.
+ * Обновление страницы проигрывает всё заново.
+ *
+ * fill-mode both обязателен: до старта элемент должен стоять в начальном
+ * состоянии, иначе он мигнёт на своём месте и только потом поедет.
+ */
+@keyframes appear-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Для прилипающих элементов: transform создал бы новый контейнер и сломал position: sticky. */
+@keyframes appear-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.appear {
+  animation: appear-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.appear-fade {
+  animation: appear-fade 320ms ease-out both;
+}
+
+.appear-1 { animation-delay: 60ms; }
+.appear-2 { animation-delay: 120ms; }
+.appear-3 { animation-delay: 180ms; }
+.appear-4 { animation-delay: 240ms; }
+
+/*
+ * Каскад по прямым детям: соседние элементы выезжают друг за другом.
+ * Шаг маленький — сорок миллисекунд, чтобы вся группа собралась быстрее,
+ * чем взгляд успеет заскучать.
+ */
+.stagger > * {
+  animation: appear-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stagger > *:nth-child(1) { animation-delay: 40ms; }
+.stagger > *:nth-child(2) { animation-delay: 80ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 160ms; }
+.stagger > *:nth-child(5) { animation-delay: 200ms; }
+.stagger > *:nth-child(6) { animation-delay: 240ms; }
+.stagger > *:nth-child(7) { animation-delay: 280ms; }
+.stagger > *:nth-child(8) { animation-delay: 320ms; }
+.stagger > *:nth-child(9) { animation-delay: 360ms; }
+.stagger > *:nth-child(10) { animation-delay: 400ms; }
+.stagger > *:nth-child(n + 11) { animation-delay: 440ms; }
+
 /* Мигание карточки, когда балл пересчитался. */
 @keyframes pulse-score {
   0% {

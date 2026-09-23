@@ -75,7 +75,7 @@ export default async function BriefPage({
         <PrintButton />
       </div>
 
-      <header className="border-b border-line pb-5">
+      <header className="appear border-b border-line pb-5">
         <p className="text-xs uppercase tracking-widest text-muted">Аким на 5 часов · разбор сценария</p>
         <h1 className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-3xl font-bold tabular">
           {fmt(breakdown.score)} балла
@@ -106,7 +106,7 @@ export default async function BriefPage({
         )}
       </header>
 
-      <section className="mt-6">
+      <section className="appear appear-1 mt-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Пять решений</h2>
         <div
           className="mt-2 overflow-x-auto rounded-xl border border-line bg-panel p-3 print:overflow-visible print:rounded-none print:border-0 print:p-0"
@@ -142,7 +142,7 @@ export default async function BriefPage({
         </p>
       </section>
 
-      <section className="mt-6 grid gap-5 sm:grid-cols-2">
+      <section className="appear appear-2 mt-6 grid gap-5 sm:grid-cols-2">
         <div>
           <h2 className="text-sm font-semibold text-gain">Что сработало</h2>
           <ul className="mt-2 space-y-1.5 text-sm">

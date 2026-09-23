@@ -77,7 +77,7 @@ export default async function ComparePage({
 
       {both && (
         <>
-          <section className="mt-6 grid gap-4 sm:grid-cols-2">
+          <section className="stagger mt-6 grid gap-4 sm:grid-cols-2">
             {[left, right].map((side) => {
               const breakdown = side.breakdown!
               const other = side === left ? right.breakdown! : left.breakdown!

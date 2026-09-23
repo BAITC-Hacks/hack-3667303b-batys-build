@@ -52,6 +52,8 @@ import { CanvasBoundary } from "@/components/sim/canvas-boundary"
 import { DistrictsTable } from "@/components/sim/districts-table"
 import { FrontierChart } from "@/components/sim/frontier-chart"
 import { Scorecard } from "@/components/sim/scorecard"
+import { AnimatedNumber } from "@/components/ui/animated-number"
+import { Reveal } from "@/components/ui/reveal"
 
 // three.js незачем рендерить на сервере, поэтому карта грузится только в браузере.
 const CityMap = dynamic(() => import("@/components/city/city-map"), {
@@ -160,7 +162,7 @@ export function Simulator({
       />
 
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        <section id="city-overview" aria-label="Город и показатели сценария" className="mt-4 rounded-2xl border border-line bg-panel p-3 shadow-sm sm:mt-6 sm:p-5">
+        <section id="city-overview" aria-label="Город и показатели сценария" className="appear mt-4 rounded-2xl border border-line bg-panel p-3 shadow-sm sm:mt-6 sm:p-5">
           <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap" role="tablist" aria-label="Подробности сценария">
             {TABS.map((item) => {
               const Icon = item.icon
@@ -201,22 +203,26 @@ export function Simulator({
           </div>
 
           <div id="scenario-details" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="mt-3 sm:mt-4">
-            {tab === "city" && (
+            {tab === "city" ? (
               <CanvasBoundary>
                 <CityMap breakdown={breakdown} decisions={decisions} />
               </CanvasBoundary>
+            ) : (
+              <Reveal key={tab}>
+                {tab === "frontier" ? (
+                  <FrontierChart currentCost={cost} currentScore={breakdown.score} valid={ready} />
+                ) : (
+                  <DistrictsTable breakdown={breakdown} />
+                )}
+              </Reveal>
             )}
-            {tab === "frontier" && (
-              <FrontierChart currentCost={cost} currentScore={breakdown.score} valid={ready} />
-            )}
-            {tab === "districts" && <DistrictsTable breakdown={breakdown} />}
           </div>
         </section>
 
         <Onboarding onExample={() => setDecisions(EXAMPLE)} />
 
         <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
-          <section id="decisions" aria-labelledby="step-1" className="min-w-0">
+          <section id="decisions" aria-labelledby="step-1" className="appear appear-2 min-w-0">
             <StepHeading
               id="step-1"
               number={1}
@@ -243,7 +249,7 @@ export function Simulator({
               ))}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="stagger grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {visible.map((measure) => (
                 <MeasureCard
                   key={measure.id}
@@ -257,7 +263,7 @@ export function Simulator({
             </div>
           </section>
 
-          <aside id="scenario-summary" aria-labelledby="step-2" className="min-w-0 space-y-4">
+          <aside id="scenario-summary" aria-labelledby="step-2" className="stagger min-w-0 space-y-4">
             <StepHeading
               id="step-2"
               number={2}
@@ -322,7 +328,7 @@ function StatusBar({
   const query = `s=${encodeDecisions(decisions)}${eventId ? `&event=${eventId}` : ""}`
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-panel/95 shadow-[0_2px_16px_#18332f04] backdrop-blur-lg">
+    <header className="appear-fade sticky top-0 z-30 border-b border-line bg-panel/95 shadow-[0_2px_16px_#18332f04] backdrop-blur-lg">
       <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="mr-auto flex items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white">
@@ -368,7 +374,7 @@ function StatusBar({
           <p className="text-muted">Балл</p>
           {ready ? (
             <p className="text-lg font-bold leading-tight tabular">
-              {fmt(breakdown.score)}
+              <AnimatedNumber value={breakdown.score} format={(current) => fmt(current)} />
               <span
                 className={cn(
                   "ml-1.5 text-sm font-semibold",
@@ -568,7 +574,7 @@ function DecisionList({
 /** Правила остаются на месте, чтобы первое решение не сдвигало весь каталог. */
 function Onboarding({ onExample }: { onExample: () => void }) {
   return (
-    <section aria-label="Как устроен симулятор" className="mt-4 flex flex-col gap-4 rounded-2xl border border-[#d4e8df] bg-[#e9f4ed] p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+    <section aria-label="Как устроен симулятор" className="appear appear-1 mt-4 flex flex-col gap-4 rounded-2xl border border-[#d4e8df] bg-[#e9f4ed] p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <MapPin className="size-4 text-accent" aria-hidden /> Теперь город в ваших руках
