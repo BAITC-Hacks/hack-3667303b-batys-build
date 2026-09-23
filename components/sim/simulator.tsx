@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { RotateCcw, Sparkles, Trash2 } from "lucide-react"
 
 import {
@@ -24,6 +25,14 @@ import { cn, fmtDelta } from "@/lib/utils"
 import { AiPanel } from "@/components/sim/ai-panel"
 import { DistrictsTable } from "@/components/sim/districts-table"
 import { Scorecard } from "@/components/sim/scorecard"
+
+// three.js незачем рендерить на сервере, поэтому карта грузится только в браузере.
+const CityMap = dynamic(() => import("@/components/city/city-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="mt-6 h-[460px] animate-pulse rounded-lg border border-line bg-panel" />
+  ),
+})
 
 /** Пример допустимого набора из ТЗ — удобная точка старта для демонстрации. */
 const EXAMPLE: Decision[] = [
@@ -188,6 +197,8 @@ export function Simulator() {
           />
         </aside>
       </div>
+
+      <CityMap breakdown={breakdown} decisions={decisions} />
 
       <DistrictsTable breakdown={breakdown} />
     </div>
