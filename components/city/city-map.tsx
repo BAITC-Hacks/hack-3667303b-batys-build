@@ -1,20 +1,21 @@
 "use client"
 
-import { Suspense, useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import { Canvas } from "@react-three/fiber"
 import { Html, Instance, Instances, OrbitControls, PerspectiveCamera } from "@react-three/drei"
 import * as THREE from "three"
 
 import { MEASURE_BY_ID, type Decision, type Direction, type DistrictId } from "@/lib/domain/city"
 import type { DistrictBreakdown, ScenarioBreakdown } from "@/lib/engine/score"
+import { ModelInstances, type CityModel, type ModelPlacement } from "./model-instances"
 
 /**
  * Карта города: пять кварталов, высота и цвет застройки отражают оценку района,
  * а принятые меры появляются на земле предметами — деревьями, остановками,
  * фонарями, корпусами школ и поликлиник.
  *
- * Геометрия целиком процедурная: ни одной внешней модели, чтобы страница
- * оставалась лёгкой и ничего не нужно было докачивать.
+ * Локальные GLB используют общую геометрию через инстансинг; пока модель
+ * загружается или недоступна, карта показывает процедурную замену.
  */
 
 interface Plot {
@@ -48,9 +49,14 @@ function jitter(seed: number): number {
   return value - Math.floor(value)
 }
 
-interface Building {
-  key: string
-  position: [number, number, number]
+const BUILDING_MODELS = [
+  "residential-slab",
+  "residential-tower",
+  "residential-courtyard",
+] as const satisfies readonly CityModel[]
+
+interface Building extends ModelPlacement {
+  model: (typeof BUILDING_MODELS)[number]
   scale: [number, number, number]
   color: THREE.Color
 }
@@ -77,12 +83,14 @@ function buildingsFor(district: DistrictBreakdown, plot: Plot): Building[] {
 
       buildings.push({
         key: `${plot.id}-${col}-${row}`,
+        model: BUILDING_MODELS[Math.floor(jitter(seed * 4.3) * BUILDING_MODELS.length)],
         position: [
           plot.x - plot.width / 2 + stepX * (col + 0.5) + (jitter(seed * 3.1) - 0.5) * 0.4,
-          height / 2,
+          0,
           plot.z - plot.depth / 2 + stepZ * (row + 0.5) + (jitter(seed * 5.3) - 0.5) * 0.4,
         ],
         scale: [footprint, height, footprint],
+        rotation: [0, Math.floor(jitter(seed * 8.3) * 4) * Math.PI / 2, 0],
         color,
       })
     }
@@ -99,10 +107,16 @@ const PROP_BY_DIRECTION: Record<Direction, "tree" | "stop" | "block" | "light" |
   service: "pipe",
 }
 
-interface Prop {
-  key: string
+interface Prop extends ModelPlacement {
   kind: "tree" | "stop" | "block" | "light" | "pipe"
-  position: [number, number, number]
+}
+
+const PROP_MODELS: Record<Prop["kind"], CityModel> = {
+  tree: "tree",
+  stop: "bus-shelter",
+  block: "civic-building",
+  light: "streetlight",
+  pipe: "utility-cover",
 }
 
 function propsFor(decisions: Decision[]): Prop[] {
@@ -221,13 +235,11 @@ export default function CityMap({
             enableRotate={view === "orbit"}
           />
 
-          <Suspense fallback={null}>
-            <Ground />
-            <Plots districts={breakdown.districts} />
-            <Buildings buildings={buildings} />
-            <Props props={props} />
-            <Labels districts={breakdown.districts} />
-          </Suspense>
+          <Ground />
+          <Plots districts={breakdown.districts} />
+          <Buildings buildings={buildings} />
+          <Props props={props} />
+          <Labels districts={breakdown.districts} />
         </Canvas>
       </div>
 
@@ -274,15 +286,35 @@ function Plots({ districts }: { districts: DistrictBreakdown[] }) {
 }
 
 function Buildings({ buildings }: { buildings: Building[] }) {
+  const groups = useMemo(
+    () => BUILDING_MODELS.map((model) => ({
+      model,
+      items: buildings.filter((building) => building.model === model),
+    })),
+    [buildings],
+  )
+
+  return groups.map(({ model, items }) => (
+    <ModelInstances
+      key={model}
+      model={model}
+      items={items}
+      fallback={<BuildingPrimitives buildings={items} />}
+    />
+  ))
+}
+
+function BuildingPrimitives({ buildings }: { buildings: Building[] }) {
   return (
-    <Instances limit={Math.max(1, buildings.length)} castShadow receiveShadow>
+    <Instances key={buildings.length} limit={Math.max(1, buildings.length)} castShadow receiveShadow>
       <boxGeometry />
       <meshStandardMaterial roughness={0.75} />
       {buildings.map((building) => (
         <Instance
           key={building.key}
-          position={building.position}
+          position={[building.position[0], building.scale[1] / 2, building.position[2]]}
           scale={building.scale}
+          rotation={building.rotation}
           color={building.color}
         />
       ))}
@@ -322,17 +354,26 @@ const PROP_STYLE: Record<
 }
 
 function PropGroup({ kind, items }: { kind: Prop["kind"]; items: Prop[] }) {
+  return (
+    <ModelInstances
+      model={PROP_MODELS[kind]}
+      items={items}
+      fallback={<PropPrimitives kind={kind} items={items} />}
+    />
+  )
+}
+
+function PropPrimitives({ kind, items }: { kind: Prop["kind"]; items: Prop[] }) {
   const style = PROP_STYLE[kind]
-  const geometry = useRef<THREE.BufferGeometry>(null)
 
   return (
-    <Instances limit={Math.max(1, items.length)} castShadow>
+    <Instances key={items.length} limit={Math.max(1, items.length)} castShadow>
       {style.shape === "cone" ? (
-        <coneGeometry ref={geometry} args={[style.radius, style.height, 7]} />
+        <coneGeometry args={[style.radius, style.height, 7]} />
       ) : style.shape === "cylinder" ? (
-        <cylinderGeometry ref={geometry} args={[style.radius, style.radius, style.height, 8]} />
+        <cylinderGeometry args={[style.radius, style.radius, style.height, 8]} />
       ) : (
-        <boxGeometry ref={geometry} args={[style.radius * 2, style.height, style.radius * 2]} />
+        <boxGeometry args={[style.radius * 2, style.height, style.radius * 2]} />
       )}
       <meshStandardMaterial color={style.color} roughness={0.6} />
       {items.map((item) => (

@@ -1,0 +1,230 @@
+{
+  "baseScore": 52.56,
+  "generatedAt": "2026-09-23",
+  "points": [
+    {
+      "budget": 65,
+      "score": 55.79,
+      "delta": 3.23,
+      "cost": 62,
+      "decisions": [
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M11",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M12",
+          "districtId": null
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 70,
+      "score": 56.67,
+      "delta": 4.12,
+      "cost": 68,
+      "decisions": [
+        {
+          "measureId": "M8",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M11",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 75,
+      "score": 56.87,
+      "delta": 4.31,
+      "cost": 72,
+      "decisions": [
+        {
+          "measureId": "M8",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M12",
+          "districtId": null
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 80,
+      "score": 56.87,
+      "delta": 4.31,
+      "cost": 72,
+      "decisions": [
+        {
+          "measureId": "M8",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M12",
+          "districtId": null
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 85,
+      "score": 56.9,
+      "delta": 4.34,
+      "cost": 83,
+      "decisions": [
+        {
+          "measureId": "M2",
+          "districtId": null
+        },
+        {
+          "measureId": "M4",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M8",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 90,
+      "score": 57.19,
+      "delta": 4.63,
+      "cost": 88,
+      "decisions": [
+        {
+          "measureId": "M3",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M8",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M10",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 95,
+      "score": 57.23,
+      "delta": 4.67,
+      "cost": 91,
+      "decisions": [
+        {
+          "measureId": "M3",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M4",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M8",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    },
+    {
+      "budget": 100,
+      "score": 57.24,
+      "delta": 4.68,
+      "cost": 98,
+      "decisions": [
+        {
+          "measureId": "M2",
+          "districtId": null
+        },
+        {
+          "measureId": "M3",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M8",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M9",
+          "districtId": "nura"
+        },
+        {
+          "measureId": "M14",
+          "districtId": null
+        }
+      ]
+    }
+  ]
+}

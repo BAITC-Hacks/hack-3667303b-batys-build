@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test \"lib/**/*.test.ts\"",
-    "ai:check": "tsx scripts/ai-check.ts"
+    "ai:check": "tsx scripts/ai-check.ts",
+    "frontier": "tsx scripts/build-frontier.ts"
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.2.10",
