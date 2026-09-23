@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo, useRef, useState } from "react"
 import { Canvas } from "@react-three/fiber"
-import { Instance, Instances, OrbitControls, PerspectiveCamera, Text } from "@react-three/drei"
+import { Html, Instance, Instances, OrbitControls, PerspectiveCamera } from "@react-three/drei"
 import * as THREE from "three"
 
 import { MEASURE_BY_ID, type Decision, type Direction, type DistrictId } from "@/lib/domain/city"
@@ -345,6 +345,11 @@ function PropGroup({ kind, items }: { kind: Prop["kind"]; items: Prop[] }) {
   )
 }
 
+/**
+ * Подписи районов сделаны через Html, а не через drei Text: троика тянет шрифт
+ * из сети и не гарантирует кириллицу, а DOM-подпись рисуется всегда и наследует
+ * шрифт страницы.
+ */
 function Labels({ districts }: { districts: DistrictBreakdown[] }) {
   return (
     <>
@@ -352,18 +357,29 @@ function Labels({ districts }: { districts: DistrictBreakdown[] }) {
         const plot = PLOT_BY_ID.get(district.id)
         if (!plot) return null
         return (
-          <Text
+          <Html
             key={district.id}
-            position={[plot.x, 6.2, plot.z]}
-            fontSize={0.95}
-            color={district.isWeakest ? "#f0a23c" : "#e8e8ea"}
-            anchorX="center"
-            anchorY="middle"
-            outlineWidth={0.06}
-            outlineColor="#15171b"
+            position={[plot.x, 5.4, plot.z]}
+            center
+            distanceFactor={26}
+            zIndexRange={[10, 0]}
+            style={{ pointerEvents: "none" }}
           >
-            {`${district.name}  ${district.after.toFixed(1)}`}
-          </Text>
+            <div
+              style={{
+                whiteSpace: "nowrap",
+                borderRadius: 6,
+                padding: "2px 8px",
+                fontSize: 13,
+                fontWeight: 600,
+                color: district.isWeakest ? "#f0a23c" : "#ececed",
+                background: "rgba(16, 18, 22, 0.78)",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              {district.name} {district.after.toFixed(1)}
+            </div>
+          </Html>
         )
       })}
     </>

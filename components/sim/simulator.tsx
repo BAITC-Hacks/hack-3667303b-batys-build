@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
-import { RotateCcw, Sparkles, Trash2, Zap } from "lucide-react"
+import { FileText, RotateCcw, Sparkles, Trash2, Zap } from "lucide-react"
 
 import {
   BUDGET,
@@ -17,6 +17,7 @@ import {
   type DistrictId,
   type Measure,
 } from "@/lib/domain/city"
+import { encodeDecisions } from "@/lib/domain/encode"
 import { CITY_EVENTS, EVENT_BY_ID } from "@/lib/domain/events"
 import { scoreScenario, type ScenarioBreakdown } from "@/lib/engine/score"
 import { canAdd, totalCost, validateScenario } from "@/lib/engine/validate"
@@ -54,9 +55,16 @@ const DIRECTION_COLOR: Record<Direction, string> = {
 
 const DIRECTION_ORDER: Direction[] = ["transport", "eco", "social", "safety", "service"]
 
-export function Simulator() {
-  const [decisions, setDecisions] = useState<Decision[]>([])
-  const [eventId, setEventId] = useState<string | null>(null)
+export function Simulator({
+  initialDecisions = [],
+  initialEventId = null,
+}: {
+  /** Сценарий из адреса страницы: так им можно обменяться ссылкой. */
+  initialDecisions?: Decision[]
+  initialEventId?: string | null
+}) {
+  const [decisions, setDecisions] = useState<Decision[]>(initialDecisions)
+  const [eventId, setEventId] = useState<string | null>(initialEventId)
 
   const event = eventId ? (EVENT_BY_ID.get(eventId) ?? null) : null
   const breakdown = useMemo(() => scoreScenario(decisions, event), [decisions, event])
@@ -94,6 +102,17 @@ export function Simulator() {
             <Sparkles className="size-4" aria-hidden />
             Пример из ТЗ
           </button>
+          <a
+            href={`/brief?s=${encodeDecisions(decisions)}${eventId ? `&event=${eventId}` : ""}`}
+            aria-disabled={!isComplete}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-md border border-line bg-panel px-3 py-2 text-sm font-medium transition hover:bg-panel-raised",
+              !isComplete && "pointer-events-none opacity-40",
+            )}
+          >
+            <FileText className="size-4" aria-hidden />
+            Разбор для защиты
+          </a>
           <button
             type="button"
             onClick={() => setDecisions([])}
