@@ -53,6 +53,8 @@ import { CanvasBoundary } from "@/components/sim/canvas-boundary"
 import { DistrictsTable } from "@/components/sim/districts-table"
 import { FrontierChart } from "@/components/sim/frontier-chart"
 import { Scorecard } from "@/components/sim/scorecard"
+import { AnimatedNumber } from "@/components/ui/animated-number"
+import { Reveal } from "@/components/ui/reveal"
 
 // three.js незачем рендерить на сервере, поэтому карта грузится только в браузере.
 const CityMap = dynamic(() => import("@/components/city/city-map"), {
@@ -277,6 +279,8 @@ export function Simulator({
           </div>
 
           <div id="scenario-details" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="mt-4">
+            {/* key по вкладке: при переключении содержимое проявляется заново. */}
+            <Reveal key={tab}>
             {tab === "city" && (
               <CanvasBoundary>
                 <CityMap breakdown={breakdown} decisions={decisions} />
@@ -286,6 +290,7 @@ export function Simulator({
               <FrontierChart currentCost={cost} currentScore={breakdown.score} valid={ready} />
             )}
             {tab === "districts" && <DistrictsTable breakdown={breakdown} />}
+            </Reveal>
           </div>
         </section>
         <footer className="mt-7 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
@@ -375,7 +380,7 @@ function StatusBar({
           <p className="text-muted">Балл</p>
           {ready ? (
             <p className="text-lg font-bold leading-tight tabular">
-              {fmt(breakdown.score)}
+              <AnimatedNumber value={breakdown.score} format={(current) => fmt(current)} />
               <span
                 className={cn(
                   "ml-1.5 text-sm font-semibold",

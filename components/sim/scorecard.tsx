@@ -6,6 +6,8 @@ import type { ScenarioBreakdown } from "@/lib/engine/score"
 import type { Violation } from "@/lib/engine/validate"
 import { cn, fmt, fmtDelta } from "@/lib/utils"
 
+import { AnimatedNumber } from "@/components/ui/animated-number"
+
 export function Scorecard({
   breakdown,
   complete,
@@ -48,9 +50,11 @@ export function Scorecard({
         ) : (
           <>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-              <span key={breakdown.score} className="score-pulse rounded text-5xl font-semibold tracking-tight text-foreground tabular">
-                {fmt(breakdown.score)}
-              </span>
+              <AnimatedNumber
+                value={breakdown.score}
+                format={(current) => fmt(current)}
+                className="rounded text-5xl font-semibold tracking-tight text-foreground tabular"
+              />
               <span
                 className={cn(
                   "rounded-full px-2.5 py-1 text-xs font-semibold tabular",
