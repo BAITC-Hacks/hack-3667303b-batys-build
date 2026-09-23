@@ -12,54 +12,62 @@ import { cn, fmt, fmtDelta } from "@/lib/utils"
 export function DistrictsTable({ breakdown }: { breakdown: ScenarioBreakdown }) {
   return (
     <section aria-label="Показатели районов">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-        Районы после принятых решений
-      </h2>
-      <div className="overflow-x-auto rounded-lg border border-line bg-panel">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold">Как меняются районы</h2>
+          <p className="mt-1 text-xs text-muted">Значения после решений и их изменение к базе</p>
+        </div>
+        <span className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">
+          Шкала 0–100
+        </span>
+      </div>
+      <div className="overflow-x-auto rounded-2xl border border-line bg-panel shadow-sm" tabIndex={0} role="region" aria-label="Таблица районов с горизонтальной прокруткой">
         <table className="w-full min-w-[900px] border-collapse text-sm">
           <caption className="sr-only">
             Значения десяти показателей по пяти районам до и после принятых решений
           </caption>
           <thead>
-            <tr className="border-b border-line text-left">
-              <th scope="col" className="px-3 py-2 font-medium">
+            <tr className="border-b border-line bg-panel-raised/70 text-left text-muted">
+              <th scope="col" className="sticky left-0 z-10 bg-panel-raised px-4 py-3.5 font-medium">
                 Район
               </th>
-              <th scope="col" className="px-3 py-2 text-right font-medium">
+              <th scope="col" className="px-4 py-3.5 text-right font-medium">
                 Оценка D
               </th>
               {INDICATORS.map((indicator) => (
                 <th
                   key={indicator}
                   scope="col"
-                  className="px-2 py-2 text-right font-medium"
+                  className="px-3 py-3.5 text-right text-xs font-medium"
                   title={`${INDICATOR_META[indicator].label}. ${INDICATOR_META[indicator].hint}`}
                 >
-                  {indicator}
+                  <abbr className="cursor-help no-underline" title={INDICATOR_META[indicator].label}>
+                    {indicator}
+                  </abbr>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {breakdown.districts.map((district) => (
-              <tr key={district.id} className="border-b border-line/60 last:border-0">
-                <th scope="row" className="px-3 py-2 text-left font-medium">
+              <tr key={district.id} className="group border-b border-line/70 transition last:border-0 hover:bg-accent-soft/40">
+                <th scope="row" className="sticky left-0 z-10 bg-panel px-4 py-4 text-left font-medium group-hover:bg-panel-raised">
                   <span className="flex items-center gap-2">
                     {district.name}
                     {district.isWeakest && (
-                      <span className="rounded bg-warn/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warn">
-                        слабейший
+                      <span className="rounded-full bg-warn/10 px-2 py-0.5 text-[10px] font-semibold text-warn">
+                        Слабейший
                       </span>
                     )}
                   </span>
-                  <span className="text-xs font-normal text-muted">
+                  <span className="mt-1 block text-xs font-normal text-muted">
                     {Math.round(district.population * 100)}% населения
                   </span>
                 </th>
-                <td className="px-3 py-2 text-right tabular">
-                  <span className="font-semibold">{fmt(district.after)}</span>
+                <td className="px-4 py-4 text-right tabular">
+                  <span className="font-semibold text-foreground">{fmt(district.after)}</span>
                   {district.delta !== 0 && (
-                    <span className={cn("ml-1.5 text-xs", district.delta > 0 ? "text-gain" : "text-loss")}>
+                    <span className={cn("mt-1 block text-xs", district.delta > 0 ? "text-gain" : "text-loss")}>
                       {fmtDelta(district.delta)}
                     </span>
                   )}
@@ -68,8 +76,8 @@ export function DistrictsTable({ breakdown }: { breakdown: ScenarioBreakdown }) 
                   <td
                     key={indicator.key}
                     className={cn(
-                      "px-2 py-2 text-right tabular",
-                      indicator.critical && "bg-loss/10 text-loss",
+                      "px-3 py-4 text-right tabular",
+                      indicator.critical && "bg-loss/5 text-loss",
                     )}
                     title={`${indicator.label}: было ${fmt(indicator.before, 1)}, стало ${fmt(indicator.after, 1)}`}
                   >
@@ -79,7 +87,7 @@ export function DistrictsTable({ breakdown }: { breakdown: ScenarioBreakdown }) 
                     {indicator.delta !== 0 && (
                       <span
                         className={cn(
-                          "block text-[10px] leading-tight",
+                          "mt-1 block text-[11px] leading-tight",
                           indicator.delta > 0 ? "text-gain" : "text-loss",
                         )}
                       >
@@ -93,7 +101,7 @@ export function DistrictsTable({ breakdown }: { breakdown: ScenarioBreakdown }) 
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-muted">
+      <p className="mt-3 text-xs leading-relaxed text-muted">
         Красным — значения ниже 40: каждое такое снимает один балл с итога. Шкала всех
         показателей 0–100, больше — лучше.
       </p>

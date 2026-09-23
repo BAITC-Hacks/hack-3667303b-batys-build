@@ -19,10 +19,9 @@ import { cn, fmt, fmtDelta } from "@/lib/utils"
 const POINTS = frontier.points
 const BASE = frontier.baseScore
 
-// Цвета проверены валидатором палитры на тёмной подложке: разделимость при
-// дальтонизме и контраст к фону проходят по всем проверкам.
-const LINE = "#3f7fc4"
-const MARK = "#c8821f"
+// Тёмные акценты сохраняют читаемость линии и подписей на светлой подложке.
+const LINE = "#087f70"
+const MARK = "#b45309"
 
 const WIDTH = 720
 const HEIGHT = 260
@@ -68,163 +67,176 @@ export function FrontierChart({
 
   return (
     <section aria-label="Граница достижимого">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-        Сколько балла можно купить
+      <h2 className="text-base font-semibold">
+        Сколько даёт каждый бюджет
       </h2>
-      <p className="mt-1 max-w-3xl text-xs text-muted">
-        Верхняя граница посчитана полным перебором: для каждого потолка расходов это лучший
-        возможный результат. Кривая начинается с {frontier.minimumCost} единиц — дешевле
-        допустимого набора из пяти решений не существует вовсе. Дальше отдача падает:
-        от {POINTS[0].budget} до {knee.budget} каждая единица бюджета приносит{" "}
-        {fmt(earlyRate, 3)} балла, а от {knee.budget} до {richest.budget} — всего{" "}
-        {fmt(lateRate, 3)}, то есть примерно в {ratio} раз меньше.
+      <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted">
+        Сравните ваш сценарий с лучшим возможным результатом при каждом уровне расходов.
       </p>
 
-      <div className="mt-3 rounded-lg border border-line bg-panel p-3">
-        <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="h-auto w-full"
-          role="img"
-          aria-label={`Максимально достижимый балл растёт с ${fmt(POINTS[0].score)} при бюджете ${POINTS[0].budget} до ${fmt(richest.score)} при бюджете ${richest.budget}`}
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={LINE} stopOpacity="0.28" />
-              <stop offset="100%" stopColor={LINE} stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
+      <div className="mt-4 rounded-2xl border border-line bg-panel p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+          <span className="flex items-center gap-2">
+            <span className="h-0.5 w-5 rounded-full" style={{ backgroundColor: LINE }} aria-hidden />
+            Лучший результат
+          </span>
+          {showMarker && (
+            <span className="flex items-center gap-2">
+              <span className="size-2.5 rounded-full" style={{ backgroundColor: MARK }} aria-hidden />
+              Ваш сценарий
+            </span>
+          )}
+        </div>
+        <div className="overflow-x-auto">
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="h-auto w-full min-w-[520px]"
+            role="img"
+            aria-label={`Максимально достижимый балл растёт с ${fmt(POINTS[0].score)} при бюджете ${POINTS[0].budget} до ${fmt(richest.score)} при бюджете ${richest.budget}`}
+          >
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={LINE} stopOpacity="0.16" />
+                <stop offset="100%" stopColor={LINE} stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
 
-          {/* Сетка и подписи держатся в фоне, чтобы не спорить с данными. */}
-          {[53, 54, 55, 56, 57, 58].map((value) => (
-            <g key={value}>
-              <line
-                x1={PAD.left}
-                y1={sy(value)}
-                x2={WIDTH - PAD.right}
-                y2={sy(value)}
-                stroke="currentColor"
-                strokeWidth="1"
-                className="text-line"
-                opacity="0.5"
-              />
+            {/* Сетка и подписи держатся в фоне, чтобы не спорить с данными. */}
+            {[53, 54, 55, 56, 57, 58].map((value) => (
+              <g key={value}>
+                <line
+                  x1={PAD.left}
+                  y1={sy(value)}
+                  x2={WIDTH - PAD.right}
+                  y2={sy(value)}
+                  stroke="currentColor"
+                  strokeWidth="1"
+                  className="text-line"
+                  opacity="0.8"
+                />
+                <text
+                  x={PAD.left - 8}
+                  y={sy(value) + 4}
+                  textAnchor="end"
+                  className="fill-current text-[11px] text-muted"
+                >
+                  {value}
+                </text>
+              </g>
+            ))}
+
+            {POINTS.map((p) => (
               <text
-                x={PAD.left - 8}
-                y={sy(value) + 4}
-                textAnchor="end"
+                key={p.budget}
+                x={sx(p.budget)}
+                y={HEIGHT - PAD.bottom + 16}
+                textAnchor="middle"
                 className="fill-current text-[11px] text-muted"
               >
-                {value}
+                {p.budget}
               </text>
-            </g>
-          ))}
-
-          {POINTS.map((p) => (
+            ))}
             <text
-              key={p.budget}
-              x={sx(p.budget)}
-              y={HEIGHT - PAD.bottom + 16}
-              textAnchor="middle"
+              x={WIDTH - PAD.right}
+              y={HEIGHT - 6}
+              textAnchor="end"
               className="fill-current text-[11px] text-muted"
             >
-              {p.budget}
+              бюджет, условных единиц
             </text>
-          ))}
-          <text
-            x={WIDTH - PAD.right}
-            y={HEIGHT - 6}
-            textAnchor="end"
-            className="fill-current text-[11px] text-muted"
-          >
-            бюджет, условных единиц
-          </text>
 
-          {/* Балл города, если не делать ничего — точка отсчёта для всей картины. */}
-          <line
-            x1={PAD.left}
-            y1={sy(BASE)}
-            x2={WIDTH - PAD.right}
-            y2={sy(BASE)}
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeDasharray="5 4"
-            className="text-muted"
-            opacity="0.8"
-          />
-          <text
-            x={PAD.left + 6}
-            y={sy(BASE) - 6}
-            className="fill-current text-[11px] text-muted"
-          >
-            без решений — {fmt(BASE)}
-          </text>
-
-          <path d={areaPath} fill={`url(#${gradientId})`} />
-          <path d={linePath} fill="none" stroke={LINE} strokeWidth="2" strokeLinejoin="round" />
-
-          {POINTS.map((p, index) => (
-            <circle
-              key={p.budget}
-              cx={sx(p.budget)}
-              cy={sy(p.score)}
-              r={hover === index ? 5 : 3.5}
-              fill={LINE}
-              stroke="var(--panel)"
-              strokeWidth="2"
+            {/* Балл города, если не делать ничего — точка отсчёта для всей картины. */}
+            <line
+              x1={PAD.left}
+              y1={sy(BASE)}
+              x2={WIDTH - PAD.right}
+              y2={sy(BASE)}
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeDasharray="5 4"
+              className="text-muted"
+              opacity="0.8"
             />
-          ))}
+            <text
+              x={PAD.left + 6}
+              y={sy(BASE) - 6}
+              className="fill-current text-[11px] text-muted"
+            >
+              без решений — {fmt(BASE)}
+            </text>
 
-          {/* Точка пользователя: крупнее линии и с кольцом подложки, чтобы читалась поверх. */}
-          {showMarker && (
-            <g>
-              <line
-                x1={sx(currentCost)}
-                y1={sy(currentScore)}
-                x2={sx(currentCost)}
-                y2={HEIGHT - PAD.bottom}
-                stroke={MARK}
-                strokeWidth="1.5"
-                strokeDasharray="3 3"
-                opacity="0.6"
-              />
+            <path d={areaPath} fill={`url(#${gradientId})`} />
+            <path d={linePath} fill="none" stroke={LINE} strokeWidth="2.5" strokeLinejoin="round" />
+
+            {POINTS.map((p, index) => (
               <circle
-                cx={sx(currentCost)}
-                cy={sy(currentScore)}
-                r="6"
-                fill={MARK}
-                stroke="var(--panel)"
-                strokeWidth="2.5"
-              />
-              <text
-                x={sx(currentCost) + (currentCost > (X_MIN + X_MAX) / 2 ? -10 : 10)}
-                y={sy(currentScore) - 10}
-                textAnchor={currentCost > (X_MIN + X_MAX) / 2 ? "end" : "start"}
-                className="fill-current text-[11px] font-semibold"
-                style={{ color: MARK }}
-              >
-                ваш сценарий — {fmt(currentScore)}
-              </text>
-            </g>
-          )}
-
-          {/* Прозрачные полосы-мишени: попасть по ним проще, чем по точке. */}
-          {POINTS.map((p, index) => {
-            const half = (WIDTH - PAD.left - PAD.right) / (POINTS.length - 1) / 2
-            return (
-              <rect
                 key={p.budget}
-                x={sx(p.budget) - half}
-                y={PAD.top}
-                width={half * 2}
-                height={HEIGHT - PAD.top - PAD.bottom}
-                fill="transparent"
-                onPointerEnter={() => setHover(index)}
-                onPointerLeave={() => setHover(null)}
+                cx={sx(p.budget)}
+                cy={sy(p.score)}
+                r={hover === index ? 5 : 3.5}
+                fill={LINE}
+                stroke="var(--panel)"
+                strokeWidth="2"
               />
-            )
-          })}
-        </svg>
+            ))}
 
-        <p className="mt-2 min-h-5 text-xs tabular" aria-live="polite">
+            {/* Точка пользователя: крупнее линии и с кольцом подложки, чтобы читалась поверх. */}
+            {showMarker && (
+              <g>
+                <line
+                  x1={sx(currentCost)}
+                  y1={sy(currentScore)}
+                  x2={sx(currentCost)}
+                  y2={HEIGHT - PAD.bottom}
+                  stroke={MARK}
+                  strokeWidth="1.5"
+                  strokeDasharray="3 3"
+                  opacity="0.6"
+                />
+                <circle
+                  cx={sx(currentCost)}
+                  cy={sy(currentScore)}
+                  r="6"
+                  fill={MARK}
+                  stroke="var(--panel)"
+                  strokeWidth="2.5"
+                />
+                <text
+                  x={sx(currentCost) + (currentCost > (X_MIN + X_MAX) / 2 ? -10 : 10)}
+                  y={sy(currentScore) - 10}
+                  textAnchor={currentCost > (X_MIN + X_MAX) / 2 ? "end" : "start"}
+                  className="fill-current text-[11px] font-semibold"
+                  style={{ color: MARK }}
+                >
+                  ваш сценарий — {fmt(currentScore)}
+                </text>
+              </g>
+            )}
+
+            {/* Прозрачные полосы-мишени: попасть по ним проще, чем по точке. */}
+            {POINTS.map((p, index) => {
+              const previous = POINTS[index - 1]
+              const next = POINTS[index + 1]
+              const left = previous ? (sx(previous.budget) + sx(p.budget)) / 2 : PAD.left
+              const right = next ? (sx(p.budget) + sx(next.budget)) / 2 : WIDTH - PAD.right
+              return (
+                <rect
+                  key={p.budget}
+                  x={left}
+                  y={PAD.top}
+                  width={right - left}
+                  height={HEIGHT - PAD.top - PAD.bottom}
+                  fill="transparent"
+                  onPointerEnter={() => setHover(index)}
+                  onPointerLeave={() => setHover(null)}
+                  onClick={() => setHover(index)}
+                />
+              )
+            })}
+          </svg>
+        </div>
+
+        <p className="mt-3 min-h-10 rounded-xl bg-panel-raised/70 px-3 py-2.5 text-xs leading-relaxed tabular" aria-live="polite">
           {active ? (
             <span>
               Бюджет {active.budget}: потолок {fmt(active.score)} балла (
@@ -236,31 +248,45 @@ export function FrontierChart({
               {fmt(Math.max(0, richest.score - currentScore))}.
             </span>
           ) : (
-            <span className="text-muted">Наведите на точку, чтобы увидеть потолок при этом бюджете.</span>
+            <span className="text-muted">Наведите на график или коснитесь его, чтобы посмотреть результат для выбранного бюджета.</span>
           )}
         </p>
       </div>
 
-      <details className="mt-2">
-        <summary className="cursor-pointer text-xs text-muted hover:text-foreground">
-          Показать таблицей
+      <details className="mt-3 rounded-xl border border-line bg-panel px-4 py-3">
+        <summary className="cursor-pointer text-xs font-medium text-muted hover:text-foreground">
+          Как читать график
         </summary>
-        <table className="mt-2 w-full max-w-lg border-collapse text-xs">
+        <p className="mt-3 max-w-3xl text-xs leading-relaxed text-muted">
+          Верхняя граница посчитана полным перебором: для каждого потолка расходов это лучший
+          возможный результат. Кривая начинается с {frontier.minimumCost} единиц — дешевле
+          допустимого набора из пяти решений не существует. Дальше отдача падает:
+          от {POINTS[0].budget} до {knee.budget} каждая единица бюджета приносит{" "}
+          {fmt(earlyRate, 3)} балла, а от {knee.budget} до {richest.budget} — всего{" "}
+          {fmt(lateRate, 3)}, то есть примерно в {ratio} раз меньше.
+        </p>
+      </details>
+      <details className="mt-2 rounded-xl border border-line bg-panel px-4 py-3">
+        <summary className="cursor-pointer text-xs font-medium text-muted hover:text-foreground">
+          Все значения в таблице
+        </summary>
+        <table className="mt-3 w-full max-w-lg border-collapse text-xs">
+          <caption className="sr-only">Лучший результат для каждого уровня бюджета</caption>
           <thead>
             <tr className="border-b border-line text-left text-muted">
-              <th className="py-1 font-medium">Бюджет</th>
-              <th className="py-1 text-right font-medium">Потолок</th>
-              <th className="py-1 text-right font-medium">К базе</th>
-              <th className="py-1 text-right font-medium">Потрачено</th>
+              <th scope="col" className="py-2 font-medium">Бюджет</th>
+              <th scope="col" className="py-2 text-right font-medium">Потолок</th>
+              <th scope="col" className="py-2 text-right font-medium">К базе</th>
+              <th scope="col" className="py-2 text-right font-medium">Потрачено</th>
             </tr>
           </thead>
           <tbody>
             {POINTS.map((p) => (
               <tr key={p.budget} className={cn("border-b border-line/50")}>
-                <td className="py-1 tabular">{p.budget}</td>
-                <td className="py-1 text-right tabular font-semibold">{fmt(p.score)}</td>
-                <td className="py-1 text-right tabular">{fmtDelta(p.delta)}</td>
-                <td className="py-1 text-right tabular text-muted">{p.cost}</td>
+                <td className="py-2 tabular">{p.budget}</td>
+                <td className="py-2 text-right tabular font-semibold">{fmt(p.score)}</td>
+                <td className="py-2 text-right tabular text-gain">{fmtDelta(p.delta)}</td>
+                <td className="py-2 text-right tabular text-muted">{p.cost}</td>
               </tr>
             ))}
           </tbody>

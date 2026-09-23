@@ -178,7 +178,7 @@ export default function CityMap({
         id: district.id,
         position: [plot.x, 5.4, plot.z],
         content: (
-          <span className={`rounded-md border border-white/15 bg-slate-950/85 px-2 py-1 text-xs font-semibold ${district.isWeakest ? "text-amber-300" : "text-slate-100"}`}>
+          <span className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${district.isWeakest ? "border-amber-200 bg-amber-50/95 text-amber-900" : "border-white bg-white/95 text-foreground"}`}>
             {district.name} {district.after.toFixed(1)}
           </span>
         ),
@@ -193,7 +193,7 @@ export default function CityMap({
           onClick={() => focusLandmark(item.id)}
           aria-label={`Приблизить: ${item.name}`}
           aria-pressed={selected === item.id}
-          className="pointer-events-auto rounded-full border border-amber-200/30 bg-slate-950/85 px-2.5 py-1 text-xs font-semibold text-amber-100 shadow-lg transition hover:border-amber-200 hover:bg-slate-900"
+          className="pointer-events-auto rounded-full border border-white bg-white/95 px-3 py-1.5 text-xs font-semibold text-accent shadow-sm transition hover:border-accent/40 hover:bg-emerald-50"
         >
           {item.name}
         </button>
@@ -220,17 +220,17 @@ export default function CityMap({
   }
 
   return (
-    <section className="mt-6" aria-label="Карта города">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <section className="mt-6 rounded-3xl border border-line bg-panel p-4 shadow-sm sm:p-5" aria-label="Карта города">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Астана</h2>
-          <p className="text-xs text-muted">Город ваших решений</p>
+          <h2 className="text-lg font-semibold tracking-tight">Город ваших решений</h2>
+          <p className="mt-1 text-xs text-muted">Астана · исследуйте изменения на карте</p>
         </div>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setView(view === "orbit" ? "top" : "orbit")}
-            className="rounded-md border border-line bg-panel px-2.5 py-1.5 text-xs font-medium transition hover:bg-panel-raised"
+            className="min-h-10 rounded-xl border border-line bg-panel px-3.5 py-2 text-xs font-semibold transition hover:border-accent/30 hover:bg-panel-raised"
           >
             {view === "orbit" ? "Вид сверху" : "Вид с орбиты"}
           </button>
@@ -238,18 +238,18 @@ export default function CityMap({
             type="button"
             onClick={screenshot}
             disabled={!canvas}
-            className="rounded-md border border-line bg-panel px-2.5 py-1.5 text-xs font-medium transition hover:bg-panel-raised disabled:opacity-40"
+            className="min-h-10 rounded-xl border border-line bg-panel px-3.5 py-2 text-xs font-semibold transition hover:border-accent/30 hover:bg-panel-raised disabled:opacity-40"
           >
             Сохранить кадр
           </button>
         </div>
       </div>
 
-      <div className="relative h-[540px] overflow-hidden rounded-xl border border-line bg-[#111e29] sm:h-[600px]">
-        <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 backdrop-blur-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200/80">Городские ориентиры</p>
-          <p className="mt-1 text-sm font-medium text-slate-100">{landmark?.name ?? "Силуэты столицы"}</p>
-          <p className="mt-0.5 text-xs text-slate-400">{landmark?.caption ?? "Выберите место для крупного плана"}</p>
+      <div className="relative h-[540px] overflow-hidden rounded-2xl border border-[#d4e6e3] bg-[#e5f1ef] sm:h-[600px]">
+        <div className="pointer-events-none absolute left-3 right-3 top-3 z-20 w-fit max-w-[calc(100%-1.5rem)] rounded-xl border border-white/80 bg-white/90 px-3.5 py-3 shadow-sm backdrop-blur-sm sm:left-4 sm:top-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">Городские ориентиры</p>
+          <p className="mt-1 text-sm font-semibold text-foreground">{landmark?.name ?? "Силуэты столицы"}</p>
+          <p className="mt-1 text-xs text-muted">{landmark?.caption ?? "Выберите место для крупного плана"}</p>
         </div>
         <Canvas
           shadows={{ type: THREE.PCFShadowMap }}
@@ -258,13 +258,13 @@ export default function CityMap({
           gl={{ antialias: true, preserveDrawingBuffer: true }}
           onCreated={({ gl }) => setCanvas(gl.domElement)}
         >
-          <color attach="background" args={["#111e29"]} />
-          <ambientLight intensity={0.85} />
-          <hemisphereLight args={["#bfdced", "#344950", 1.1]} />
+          <color attach="background" args={["#e5f1ef"]} />
+          <ambientLight intensity={1} />
+          <hemisphereLight args={["#edf8ff", "#8caaa0", 1.2]} />
           <directionalLight
             castShadow
             position={[-14, 26, 14]}
-            color="#fff0cf"
+            color="#fff4dc"
             intensity={2.3}
             shadow-mapSize={[2048, 2048]}
             shadow-camera-left={-30}
@@ -285,12 +285,12 @@ export default function CityMap({
         <CityLabelLayer labels={labels} labelRefs={labelRefs} />
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2" aria-label="Городские ориентиры">
+      <div className="mt-4 flex flex-wrap gap-2" aria-label="Городские ориентиры">
         <button
           type="button"
           onClick={() => { setSelected(null); setView("orbit"); setCameraRevision((revision) => revision + 1) }}
           aria-pressed={selected === null}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${selected === null ? "border-amber-200/40 bg-amber-200/10 text-amber-200" : "border-line text-muted hover:text-foreground"}`}
+          className={`min-h-10 rounded-full border px-3.5 py-2 text-xs font-semibold transition ${selected === null ? "border-accent bg-accent text-white shadow-sm" : "border-line bg-panel text-muted hover:border-accent/30 hover:bg-panel-raised hover:text-foreground"}`}
         >
           Весь город
         </button>
@@ -300,19 +300,27 @@ export default function CityMap({
             type="button"
             onClick={() => focusLandmark(item.id)}
             aria-pressed={selected === item.id}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${selected === item.id ? "border-amber-200/40 bg-amber-200/10 text-amber-200" : "border-line text-muted hover:text-foreground"}`}
+            className={`min-h-10 rounded-full border px-3.5 py-2 text-xs font-semibold transition ${selected === item.id ? "border-accent bg-accent text-white shadow-sm" : "border-line bg-panel text-muted hover:border-accent/30 hover:bg-panel-raised hover:text-foreground"}`}
           >
             {item.name}
           </button>
         ))}
       </div>
 
-      <p className="mt-2 text-xs text-muted">
-        Высота и цвет застройки отражают оценку района: красный — ниже 45, зелёный — выше 65.
-        Предметы на земле появляются за принятые меры: деревья за экологию, остановки за
-        транспорт, корпуса за соцсферу, фонари за безопасность, люки за городские сервисы.
-        Памятники и набережная — постоянные ориентиры. Планировка условная.
-      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-4 text-xs text-muted">
+        <span className="font-medium text-foreground">Оценка района</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#c55243]" aria-hidden="true" />45 и ниже</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#40a254]" aria-hidden="true" />65 и выше</span>
+        <span className="sm:ml-auto">Планировка условная</span>
+      </div>
+      <details className="mt-3 text-xs leading-relaxed text-muted">
+        <summary className="w-fit cursor-pointer font-medium transition hover:text-accent">Как решения меняют город</summary>
+        <p className="mt-2 max-w-3xl">
+          Высота и цвет застройки отражают оценку района. Предметы на земле появляются за
+          принятые меры: деревья за экологию, остановки за транспорт, корпуса за соцсферу,
+          фонари за безопасность, люки за городские сервисы. Памятники и набережная — постоянные ориентиры.
+        </p>
+      </details>
     </section>
   )
 }
