@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/*
+  Тёмная тема ситуационного центра: симулятор — это пульт управления городом,
+  а не лендинг. Все цвета в oklch, чтобы дельты показателей читались одинаково
+  по светлоте.
+*/
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: var(--panel);
+  --color-panel-raised: var(--panel-raised);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-warn: var(--warn);
+
+  --color-transport: oklch(0.72 0.14 240);
+  --color-eco: oklch(0.74 0.15 150);
+  --color-social: oklch(0.75 0.14 85);
+  --color-safety: oklch(0.7 0.16 25);
+  --color-service: oklch(0.72 0.13 310);
+
+  --font-sans: "Noto Sans", system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+}
+
+:root {
+  --background: oklch(0.17 0.014 255);
+  --foreground: oklch(0.95 0.005 255);
+  --panel: oklch(0.21 0.016 255);
+  --panel-raised: oklch(0.25 0.018 255);
+  --line: oklch(0.32 0.018 255);
+  --muted: oklch(0.68 0.014 255);
+  --accent: oklch(0.8 0.15 75);
+  --accent-soft: oklch(0.8 0.15 75 / 12%);
+  --gain: oklch(0.78 0.16 155);
+  --loss: oklch(0.68 0.19 20);
+  --warn: oklch(0.78 0.16 60);
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Числа в таблицах должны стоять ровными колонками. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+::selection {
+  background-color: oklch(0.8 0.15 75 / 30%);
+}
+
+/* Мигание карточки, когда балл пересчитался. */
+@keyframes pulse-score {
+  0% {
+    background-color: var(--accent-soft);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.score-pulse {
+  animation: pulse-score 600ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .score-pulse {
+    animation: none;
+  }
+}
