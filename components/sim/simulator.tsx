@@ -362,6 +362,12 @@ function MeasureCard({
   // Для городских мер район не выбирается, поэтому проверяем сразу.
   const cityBlockReason = measure.scope === "city" ? canAdd(decisions, measure, null) : null
 
+  // Если мера недоступна во всех районах сразу — причина у них общая (бюджет,
+  // лимит направления), и показать её один раз понятнее, чем пять всплывающих подсказок.
+  const districtReasons =
+    measure.scope === "district" ? DISTRICTS.map((d) => canAdd(decisions, measure, d.id)) : []
+  const districtBlockReason = districtReasons.every(Boolean) ? districtReasons[0] : null
+
   return (
     <div
       className={cn(
@@ -383,18 +389,22 @@ function MeasureCard({
       {picked ? (
         <p className="mt-2.5 text-xs font-medium text-accent">Уже в сценарии</p>
       ) : measure.scope === "city" ? (
-        <button
-          type="button"
-          onClick={() => onAdd(measure, null)}
-          disabled={Boolean(cityBlockReason)}
-          title={cityBlockReason ?? undefined}
-          className="mt-2.5 w-full rounded-md border border-line bg-panel-raised px-2 py-1.5 text-xs font-medium transition hover:border-accent/60 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {cityBlockReason ? cityBlockReason : "Применить ко всему городу"}
-        </button>
+        <div className="mt-2.5">
+          <button
+            type="button"
+            onClick={() => onAdd(measure, null)}
+            disabled={Boolean(cityBlockReason)}
+            title={cityBlockReason ?? undefined}
+            className="w-full rounded-md border border-line bg-panel-raised px-2 py-1.5 text-xs font-medium transition hover:border-accent/60 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Применить ко всему городу
+          </button>
+          {/* Причина отказа живёт отдельной строкой: в кнопку она не помещается. */}
+          {cityBlockReason && <p className="mt-1 text-xs text-loss">{cityBlockReason}</p>}
+        </div>
       ) : (
         <div className="mt-2.5">
-          <p className="mb-1 text-xs text-muted">Выберите район:</p>
+          <p className="mb-1 text-xs text-muted">{districtBlockReason ?? "Выберите район:"}</p>
           <div className="flex flex-wrap gap-1">
             {DISTRICTS.map((district) => {
               const reason = canAdd(decisions, measure, district.id)
