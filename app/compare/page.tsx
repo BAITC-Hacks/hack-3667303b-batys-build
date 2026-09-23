@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 
 import { DISTRICTS, MEASURE_BY_ID } from "@/lib/domain/city"
@@ -9,6 +10,10 @@ import { validateScenario } from "@/lib/engine/validate"
 import { cn, fmt, fmtDelta } from "@/lib/utils"
 
 import { CompareForm } from "@/components/sim/compare-form"
+
+export const metadata: Metadata = {
+  title: "Сравнение сценариев — Аким на 5 часов",
+}
 
 /**
  * Сравнение двух сценариев — например, наборов двух команд.
@@ -48,7 +53,7 @@ export default async function ComparePage({
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Сравнение сценариев</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted">
@@ -56,7 +61,7 @@ export default async function ComparePage({
             Достаточно обменяться ссылками — сценарий целиком лежит в адресе страницы.
           </p>
         </div>
-        <Link href="/" className="shrink-0 text-sm text-accent underline underline-offset-4">
+        <Link href="/" className="inline-flex min-h-11 shrink-0 items-center rounded-md text-sm text-accent underline underline-offset-4">
           ← В симулятор
         </Link>
       </div>
@@ -75,11 +80,11 @@ export default async function ComparePage({
                 <div
                   key={side.label}
                   className={cn(
-                    "rounded-lg border p-4",
+                    "min-w-0 rounded-2xl border p-5 shadow-sm",
                     wins ? "border-gain/50 bg-gain/5" : "border-line bg-panel",
                   )}
                 >
-                  <div className="flex items-baseline justify-between">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
                       {side.label}
                     </h2>
@@ -100,7 +105,7 @@ export default async function ComparePage({
                       .sort((a, b) => b.shapley - a.shapley)
                       .map((contribution) => (
                         <li key={contribution.measureId} className="flex justify-between gap-2">
-                          <span className="min-w-0 truncate">
+                          <span className="min-w-0 break-words">
                             {contribution.measureName}
                             <span className="text-muted"> · {contribution.district}</span>
                           </span>
@@ -121,38 +126,46 @@ export default async function ComparePage({
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
               Районы
             </h2>
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-muted">
-                  <th className="py-1.5 font-medium">Район</th>
-                  <th className="py-1.5 text-right font-medium">A</th>
-                  <th className="py-1.5 text-right font-medium">B</th>
-                  <th className="py-1.5 text-right font-medium">Разница</th>
-                </tr>
-              </thead>
-              <tbody>
-                {DISTRICTS.map((district) => {
-                  const a = both[0].districts.find((d) => d.id === district.id)!
-                  const b = both[1].districts.find((d) => d.id === district.id)!
-                  const gap = Math.round((a.after - b.after) * 100) / 100
-                  return (
-                    <tr key={district.id} className="border-b border-line/50">
-                      <td className="py-1.5">{district.name}</td>
-                      <td className="py-1.5 text-right tabular">{fmt(a.after)}</td>
-                      <td className="py-1.5 text-right tabular">{fmt(b.after)}</td>
-                      <td
-                        className={cn(
-                          "py-1.5 text-right tabular",
-                          gap > 0 ? "text-gain" : gap < 0 ? "text-loss" : "text-muted",
-                        )}
-                      >
-                        {gap === 0 ? "—" : fmtDelta(gap)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div
+              className="overflow-x-auto rounded-xl border border-line bg-panel p-3"
+              role="region"
+              aria-label="Сравнение оценок районов"
+              tabIndex={0}
+            >
+              <table className="w-full min-w-[360px] border-collapse text-sm">
+                <caption className="sr-only">Оценки районов в сценариях A и B и разница между ними</caption>
+                <thead>
+                  <tr className="border-b border-line text-left text-muted">
+                    <th scope="col" className="py-1.5 font-medium">Район</th>
+                    <th scope="col" className="py-1.5 text-right font-medium">A</th>
+                    <th scope="col" className="py-1.5 text-right font-medium">B</th>
+                    <th scope="col" className="py-1.5 text-right font-medium">Разница</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {DISTRICTS.map((district) => {
+                    const a = both[0].districts.find((d) => d.id === district.id)!
+                    const b = both[1].districts.find((d) => d.id === district.id)!
+                    const gap = Math.round((a.after - b.after) * 100) / 100
+                    return (
+                      <tr key={district.id} className="border-b border-line/50">
+                        <th scope="row" className="py-1.5 text-left font-medium">{district.name}</th>
+                        <td className="py-1.5 text-right tabular">{fmt(a.after)}</td>
+                        <td className="py-1.5 text-right tabular">{fmt(b.after)}</td>
+                        <td
+                          className={cn(
+                            "py-1.5 text-right tabular",
+                            gap > 0 ? "text-gain" : gap < 0 ? "text-loss" : "text-muted",
+                          )}
+                        >
+                          {gap === 0 ? "—" : fmtDelta(gap)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
             <p className="mt-2 text-xs text-muted">
               Положительная разница означает, что в этом районе сильнее сценарий A.
             </p>
@@ -161,7 +174,7 @@ export default async function ComparePage({
       )}
 
       {(left.error || right.error) && (
-        <p className="mt-4 rounded-md border border-loss/40 bg-loss/10 p-3 text-sm text-loss">
+        <p role="alert" className="mt-4 rounded-xl border border-loss/40 bg-loss/10 p-3 text-sm text-loss">
           {left.error ? `Сценарий A: ${left.error}. ` : ""}
           {right.error ? `Сценарий B: ${right.error}.` : ""}
         </p>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 
 import { BUDGET } from "@/lib/domain/city"
@@ -11,6 +12,10 @@ import { describeScenario } from "@/lib/ai/explain"
 import { fmt, fmtDelta } from "@/lib/utils"
 
 import { PrintButton } from "@/components/sim/print-button"
+
+export const metadata: Metadata = {
+  title: "Разбор сценария — Аким на 5 часов",
+}
 
 /**
  * Краткая презентация решения команды: одна страница, которую можно показать
@@ -36,7 +41,7 @@ export default async function BriefPage({
             <li key={index}>{violation.message}</li>
           ))}
         </ul>
-        <Link href="/" className="mt-6 inline-block text-sm text-accent underline underline-offset-4">
+        <Link href="/" className="mt-6 inline-flex min-h-11 items-center rounded-md text-sm text-accent underline underline-offset-4">
           Вернуться в симулятор
         </Link>
       </main>
@@ -55,9 +60,9 @@ export default async function BriefPage({
   const gap = Math.round((ceiling.score - breakdown.score) * 100) / 100
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
-      <div className="mb-6 flex items-start justify-between gap-4 print:hidden">
-        <Link href={`/?s=${encodeDecisions(decisions)}`} className="text-sm text-accent underline underline-offset-4">
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10 print:max-w-none print:px-0 print:py-0">
+      <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center print:hidden">
+        <Link href={`/?s=${encodeDecisions(decisions)}`} className="inline-flex min-h-11 items-center rounded-md text-sm text-accent underline underline-offset-4">
           ← В симулятор
         </Link>
         <PrintButton />
@@ -65,9 +70,9 @@ export default async function BriefPage({
 
       <header className="border-b border-line pb-5">
         <p className="text-xs uppercase tracking-widest text-muted">Аким на 5 часов · разбор сценария</p>
-        <h1 className="mt-2 text-3xl font-bold tabular">
+        <h1 className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-3xl font-bold tabular">
           {fmt(breakdown.score)} балла
-          <span className="ml-3 text-lg font-semibold text-muted">{fmtDelta(breakdown.delta)} к базе</span>
+          <span className="text-lg font-semibold text-muted">{fmtDelta(breakdown.delta)} к базе</span>
         </h1>
         <p className="mt-2 text-sm text-muted tabular">
           Израсходовано {breakdown.cost} из {BUDGET} единиц · среднее по городу {fmt(breakdown.dAvg)} ·
@@ -96,26 +101,34 @@ export default async function BriefPage({
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Пять решений</h2>
-        <table className="mt-2 w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-muted">
-              <th className="py-1.5 font-medium">Мероприятие</th>
-              <th className="py-1.5 font-medium">Где</th>
-              <th className="py-1.5 text-right font-medium">Стоимость</th>
-              <th className="py-1.5 text-right font-medium">Вклад</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ranked.map((contribution) => (
-              <tr key={contribution.measureId} className="border-b border-line/50">
-                <td className="py-1.5">{contribution.measureName}</td>
-                <td className="py-1.5 text-muted">{contribution.district}</td>
-                <td className="py-1.5 text-right tabular">{contribution.cost}</td>
-                <td className="py-1.5 text-right font-semibold tabular">{fmtDelta(contribution.shapley)}</td>
+        <div
+          className="mt-2 overflow-x-auto rounded-xl border border-line bg-panel p-3 print:overflow-visible print:rounded-none print:border-0 print:p-0"
+          role="region"
+          aria-label="Принятые решения и их вклад"
+          tabIndex={0}
+        >
+          <table className="w-full min-w-[560px] border-collapse text-sm print:min-w-0">
+            <caption className="sr-only">Пять решений: мероприятие, район, стоимость и вклад в итоговый балл</caption>
+            <thead>
+              <tr className="border-b border-line text-left text-muted">
+                <th scope="col" className="py-1.5 pr-3 font-medium">Мероприятие</th>
+                <th scope="col" className="py-1.5 pr-3 font-medium">Где</th>
+                <th scope="col" className="py-1.5 pr-3 text-right font-medium">Стоимость</th>
+                <th scope="col" className="py-1.5 text-right font-medium">Вклад</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {ranked.map((contribution) => (
+                <tr key={contribution.measureId} className="border-b border-line/50">
+                  <th scope="row" className="py-1.5 pr-3 text-left font-medium">{contribution.measureName}</th>
+                  <td className="py-1.5 pr-3 text-muted">{contribution.district}</td>
+                  <td className="py-1.5 pr-3 text-right tabular">{contribution.cost}</td>
+                  <td className="py-1.5 text-right font-semibold tabular">{fmtDelta(contribution.shapley)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <p className="mt-1.5 text-xs text-muted">
           Вклад посчитан по Шепли: усреднение по всем порядкам добавления, поэтому бонусы
           синергий распределены честно, а не достаются последней мере.
@@ -148,29 +161,37 @@ export default async function BriefPage({
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Районы</h2>
-        <table className="mt-2 w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-muted">
-              <th className="py-1.5 font-medium">Район</th>
-              <th className="py-1.5 text-right font-medium">Было</th>
-              <th className="py-1.5 text-right font-medium">Стало</th>
-              <th className="py-1.5 text-right font-medium">Изменение</th>
-            </tr>
-          </thead>
-          <tbody>
-            {breakdown.districts.map((district) => (
-              <tr key={district.id} className="border-b border-line/50">
-                <td className="py-1.5">
-                  {district.name}
-                  {district.isWeakest && <span className="ml-2 text-xs text-warn">слабейший</span>}
-                </td>
-                <td className="py-1.5 text-right tabular text-muted">{fmt(district.before)}</td>
-                <td className="py-1.5 text-right tabular font-semibold">{fmt(district.after)}</td>
-                <td className="py-1.5 text-right tabular">{fmtDelta(district.delta)}</td>
+        <div
+          className="mt-2 overflow-x-auto rounded-xl border border-line bg-panel p-3 print:overflow-visible print:rounded-none print:border-0 print:p-0"
+          role="region"
+          aria-label="Изменения оценок районов"
+          tabIndex={0}
+        >
+          <table className="w-full min-w-[380px] border-collapse text-sm print:min-w-0">
+            <caption className="sr-only">Оценки районов до решений, после решений и их изменение</caption>
+            <thead>
+              <tr className="border-b border-line text-left text-muted">
+                <th scope="col" className="py-1.5 font-medium">Район</th>
+                <th scope="col" className="py-1.5 text-right font-medium">Было</th>
+                <th scope="col" className="py-1.5 text-right font-medium">Стало</th>
+                <th scope="col" className="py-1.5 text-right font-medium">Изменение</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {breakdown.districts.map((district) => (
+                <tr key={district.id} className="border-b border-line/50">
+                  <th scope="row" className="py-1.5 text-left font-medium">
+                    {district.name}
+                    {district.isWeakest && <span className="ml-2 text-xs text-warn">слабейший</span>}
+                  </th>
+                  <td className="py-1.5 text-right tabular text-muted">{fmt(district.before)}</td>
+                  <td className="py-1.5 text-right tabular font-semibold">{fmt(district.after)}</td>
+                  <td className="py-1.5 text-right tabular">{fmtDelta(district.delta)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <footer className="mt-8 border-t border-line pt-4 text-xs text-muted">

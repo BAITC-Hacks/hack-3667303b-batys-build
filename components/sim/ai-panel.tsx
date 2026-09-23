@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Bot, Send, Wand2 } from "lucide-react"
+import { Bot, LoaderCircle, Send, Wand2 } from "lucide-react"
 
 import type { Decision } from "@/lib/domain/city"
 import type { ScenarioBreakdown } from "@/lib/engine/score"
@@ -92,31 +92,41 @@ export function AiPanel({
   }
 
   return (
-    <div className="rounded-lg border border-line bg-panel p-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
-        <Bot className="size-4" aria-hidden />
-        ИИ-советник
-      </h2>
+    <div className="rounded-2xl border border-line bg-panel p-5 shadow-sm">
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-service/10 text-service">
+          <Bot className="size-5" aria-hidden />
+        </span>
+        <div>
+          <h2 className="text-sm font-semibold">ИИ-советник</h2>
+          <p className="mt-0.5 text-xs text-muted">Поможет увидеть сильные стороны и риски</p>
+        </div>
+      </div>
 
       <button
         type="button"
         onClick={explain}
         disabled={!complete || isExplaining}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-accent/40 bg-accent-soft px-3 py-2 text-sm font-medium text-accent transition hover:border-accent/70 disabled:opacity-40"
+        aria-busy={isExplaining}
+        className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-accent/20 bg-accent-soft px-3 py-2.5 text-sm font-semibold text-accent transition hover:border-accent/50 hover:bg-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <Wand2 className="size-4" aria-hidden />
+        {isExplaining ? (
+          <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
+        ) : (
+          <Wand2 className="size-4" aria-hidden />
+        )}
         {isExplaining ? "Разбираю сценарий…" : "Разобрать сценарий"}
       </button>
       {!complete && (
-        <p className="mt-1.5 text-xs text-muted">Доступно, когда приняты все пять решений.</p>
+        <p className="mt-2 text-xs leading-relaxed text-muted">Выберите пять решений, чтобы получить разбор.</p>
       )}
 
       {explanation && (
-        <div className="mt-3 space-y-2.5 text-sm">
-          <div className="flex items-center gap-2">
+        <div className="mt-4 space-y-3.5 text-sm leading-relaxed" aria-live="polite">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
-                "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                "rounded-full px-2.5 py-1 text-[10px] font-semibold",
                 explanation.source === "ai" ? "bg-accent-soft text-accent" : "bg-panel-raised text-muted",
               )}
             >
@@ -130,7 +140,7 @@ export function AiPanel({
           <Block title="Сильные стороны" items={explanation.strengths} tone="gain" />
           <Block title="Риски" items={explanation.risks} tone="loss" />
           {explanation.tradeoff && (
-            <p className="rounded-md bg-panel-raised p-2 text-xs">
+            <p className="rounded-xl bg-panel-raised p-3 text-xs leading-relaxed">
               <span className="font-semibold">Компромисс: </span>
               {explanation.tradeoff}
             </p>
@@ -138,28 +148,33 @@ export function AiPanel({
         </div>
       )}
 
-      <div className="mt-4 border-t border-line pt-3">
-        <p className="mb-2 text-xs text-muted">
-          Спросите совета. Числа агент не выдумывает — он вызывает движок и перебор.
+      <div className="mt-5 border-t border-line pt-4">
+        <p className="mb-3 text-xs leading-relaxed text-muted">
+          Задайте вопрос о вашем городе или выберите один из примеров.
         </p>
 
         {agent && (
-          <div className="mb-3 space-y-2">
-            <p className="rounded-md bg-panel-raised p-2.5 text-sm">{agent.reply}</p>
+          <div className="mb-4 space-y-3" aria-live="polite">
+            <p className="rounded-xl bg-panel-raised p-3.5 text-sm leading-relaxed">{agent.reply}</p>
             {agent.trace.length > 0 && (
-              <ul className="space-y-0.5 text-xs text-muted">
-                {agent.trace.map((step, index) => (
-                  <li key={index}>
-                    <span className="font-medium">{TOOL_LABELS[step.name] ?? step.name}</span> — {step.summary}
-                  </li>
-                ))}
-              </ul>
+              <details className="rounded-lg border border-line px-3 py-2">
+                <summary className="cursor-pointer text-xs font-medium text-muted hover:text-foreground">
+                  На чём основан ответ
+                </summary>
+                <ul className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
+                  {agent.trace.map((step, index) => (
+                    <li key={index}>
+                      <span className="font-medium">{TOOL_LABELS[step.name] ?? step.name}</span> — {step.summary}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
             {agent.suggestion && (
               <button
                 type="button"
                 onClick={() => onApply(agent.suggestion!)}
-                className="w-full rounded-md border border-gain/40 bg-gain/10 px-3 py-1.5 text-xs font-medium text-gain transition hover:border-gain/70"
+                className="min-h-11 w-full rounded-xl border border-gain/20 bg-gain/10 px-3 py-2.5 text-xs font-semibold text-gain transition hover:border-gain/60"
               >
                 Применить предложенный сценарий
               </button>
@@ -168,13 +183,13 @@ export function AiPanel({
         )}
 
         {!agent && !isAsking && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
+          <div className="mb-3 grid gap-2">
             {SUGGESTIONS.map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
                 onClick={() => ask(suggestion)}
-                className="rounded border border-line bg-panel-raised px-2 py-1 text-xs text-muted transition hover:border-accent/50 hover:text-foreground"
+                className="rounded-xl border border-line bg-panel px-3 py-2.5 text-left text-xs leading-relaxed text-muted transition hover:border-accent/40 hover:bg-accent-soft hover:text-accent"
               >
                 {suggestion}
               </button>
@@ -195,19 +210,23 @@ export function AiPanel({
             maxLength={600}
             placeholder="Например: где взять ещё балл?"
             aria-label="Вопрос агенту"
-            className="min-w-0 flex-1 rounded-md border border-line bg-panel-raised px-2.5 py-1.5 text-sm outline-none placeholder:text-muted focus:border-accent/60"
+            className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-panel-raised/60 px-3 py-2.5 text-sm outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/15"
           />
           <button
             type="submit"
             disabled={isAsking || !question.trim()}
-            className="shrink-0 rounded-md border border-line bg-panel-raised px-2.5 py-1.5 transition hover:border-accent/60 disabled:opacity-40"
+            className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:bg-panel-raised disabled:text-muted"
             aria-label="Отправить вопрос"
           >
-            <Send className="size-4" aria-hidden />
+            {isAsking ? (
+              <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
+            ) : (
+              <Send className="size-4" aria-hidden />
+            )}
           </button>
         </form>
-        {isAsking && <p className="mt-1.5 text-xs text-muted">Агент считает варианты…</p>}
-        {error && <p className="mt-1.5 text-xs text-loss">{error}</p>}
+        {isAsking && <p className="mt-2 text-xs text-accent" role="status">Проверяем варианты для вашего сценария…</p>}
+        {error && <p className="mt-3 rounded-lg bg-loss/5 p-3 text-xs text-loss" role="alert">{error}</p>}
       </div>
     </div>
   )
@@ -218,7 +237,7 @@ function Block({ title, items, tone }: { title: string; items: string[]; tone: "
   return (
     <div>
       <p className={cn("text-xs font-semibold", tone === "gain" ? "text-gain" : "text-loss")}>{title}</p>
-      <ul className="mt-1 space-y-1 text-xs text-muted">
+      <ul className="mt-1.5 space-y-1.5 text-xs leading-relaxed text-muted">
         {items.map((item, index) => (
           <li key={index} className="flex gap-1.5">
             <span aria-hidden>•</span>

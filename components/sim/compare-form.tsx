@@ -35,15 +35,17 @@ export function CompareForm({ initialA, initialB }: { initialA: string; initialB
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-line bg-panel p-4">
+    <form onSubmit={submit} className="rounded-2xl border border-line bg-panel p-5 shadow-sm">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">Сценарий A</span>
           <input
             value={a}
             onChange={(event) => setA(event.target.value)}
+            autoCapitalize="none"
+            spellCheck={false}
             placeholder="ссылка на сценарий или код вида M7:nura,M8:nura,…"
-            className="mt-1 w-full rounded-md border border-line bg-panel-raised px-2.5 py-1.5 text-sm outline-none placeholder:text-muted focus:border-accent/60"
+            className="mt-2 min-h-11 w-full rounded-xl border border-line bg-panel-raised px-3 py-2 text-base placeholder:text-muted focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:text-sm"
           />
         </label>
         <label className="block">
@@ -51,14 +53,16 @@ export function CompareForm({ initialA, initialB }: { initialA: string; initialB
           <input
             value={b}
             onChange={(event) => setB(event.target.value)}
+            autoCapitalize="none"
+            spellCheck={false}
             placeholder="ссылка второй команды"
-            className="mt-1 w-full rounded-md border border-line bg-panel-raised px-2.5 py-1.5 text-sm outline-none placeholder:text-muted focus:border-accent/60"
+            className="mt-2 min-h-11 w-full rounded-xl border border-line bg-panel-raised px-3 py-2 text-base placeholder:text-muted focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:text-sm"
           />
         </label>
       </div>
       <button
         type="submit"
-        className="mt-3 rounded-md border border-accent/40 bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:border-accent/70"
+        className="mt-4 min-h-11 w-full rounded-xl border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto"
       >
         Сравнить
       </button>
