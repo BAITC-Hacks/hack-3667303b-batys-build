@@ -67,7 +67,7 @@ export function FrontierChart({
   const showMarker = valid && currentCost >= X_MIN
 
   return (
-    <section className="mt-6" aria-label="Граница достижимого">
+    <section aria-label="Граница достижимого">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
         Сколько балла можно купить
       </h2>

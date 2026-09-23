@@ -11,7 +11,7 @@ import { cn, fmt, fmtDelta } from "@/lib/utils"
  */
 export function DistrictsTable({ breakdown }: { breakdown: ScenarioBreakdown }) {
   return (
-    <section className="mt-6" aria-label="Показатели районов">
+    <section aria-label="Показатели районов">
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
         Районы после принятых решений
       </h2>
