@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 
-import { DISTRICTS, MEASURE_BY_ID } from "@/lib/domain/city"
+import { DISTRICTS, MEASURE_BY_ID, type Decision } from "@/lib/domain/city"
 import { decodeDecisions } from "@/lib/domain/encode"
 import { EVENT_BY_ID } from "@/lib/domain/events"
 import { attribute } from "@/lib/engine/attribution"
@@ -10,6 +10,7 @@ import { validateScenario } from "@/lib/engine/validate"
 import { cn, fmt, fmtDelta } from "@/lib/utils"
 
 import { CompareForm } from "@/components/sim/compare-form"
+import { ComparisonAssistant } from "@/components/sim/comparison-assistant"
 
 export const metadata: Metadata = {
   title: "Сравнение сценариев — Аким на 5 часов",
@@ -26,19 +27,25 @@ export const metadata: Metadata = {
 interface Side {
   label: string
   code: string
+  decisions: Decision[]
   breakdown: ScenarioBreakdown | null
+  preview: ScenarioBreakdown
   error: string | null
 }
 
 function build(code: string | undefined, label: string, eventId: string | undefined): Side {
-  if (!code) return { label, code: "", breakdown: null, error: null }
   const decisions = decodeDecisions(code)
   const violations = validateScenario(decisions)
-  if (violations.length) {
-    return { label, code, breakdown: null, error: violations[0].message }
-  }
   const event = eventId ? (EVENT_BY_ID.get(eventId) ?? null) : null
-  return { label, code, breakdown: scoreScenario(decisions, event), error: null }
+  const preview = scoreScenario(decisions, event)
+  return {
+    label,
+    code: code ?? "",
+    decisions,
+    breakdown: violations.length ? null : preview,
+    preview,
+    error: code ? (violations[0]?.message ?? null) : null,
+  }
 }
 
 export default async function ComparePage({
@@ -52,7 +59,7 @@ export default async function ComparePage({
   const both = left.breakdown && right.breakdown ? ([left.breakdown, right.breakdown] as const) : null
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <main className="mx-auto max-w-5xl px-4 py-8 pb-28 sm:px-6">
       <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Сравнение сценариев</h1>
@@ -179,6 +186,24 @@ export default async function ComparePage({
           {right.error ? `Сценарий B: ${right.error}.` : ""}
         </p>
       )}
+      <ComparisonAssistant
+        scenarios={[
+          {
+            id: "a",
+            label: left.label,
+            decisions: left.decisions,
+            breakdown: left.preview,
+            complete: left.breakdown !== null,
+          },
+          {
+            id: "b",
+            label: right.label,
+            decisions: right.decisions,
+            breakdown: right.preview,
+            complete: right.breakdown !== null,
+          },
+        ]}
+      />
     </main>
   )
 }

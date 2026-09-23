@@ -11,6 +11,7 @@ import { validateScenario } from "@/lib/engine/validate"
 import { describeScenario } from "@/lib/ai/explain"
 import { fmt, fmtDelta } from "@/lib/utils"
 
+import { AiAssistant } from "@/components/sim/ai-assistant"
 import { PrintButton } from "@/components/sim/print-button"
 
 export const metadata: Metadata = {
@@ -31,10 +32,11 @@ export default async function BriefPage({
   const decisions = decodeDecisions(params.s)
   const event = params.event ? (EVENT_BY_ID.get(params.event) ?? null) : null
   const violations = validateScenario(decisions)
+  const breakdown = scoreScenario(decisions, event)
 
   if (violations.length) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto max-w-2xl px-6 py-16 pb-28 print:pb-0">
         <h1 className="text-xl font-semibold">Сценарий не собран</h1>
         <ul className="mt-3 space-y-1 text-sm text-muted">
           {violations.map((violation, index) => (
@@ -44,11 +46,16 @@ export default async function BriefPage({
         <Link href="/" className="mt-6 inline-flex min-h-11 items-center rounded-md text-sm text-accent underline underline-offset-4">
           Вернуться в симулятор
         </Link>
+        <AiAssistant
+          decisions={decisions}
+          breakdown={breakdown}
+          complete={false}
+          contextLabel="Разбор сценария"
+        />
       </main>
     )
   }
 
-  const breakdown = scoreScenario(decisions, event)
   const contributions = attribute(decisions)
   const summary = describeScenario(breakdown, contributions)
   const ranked = [...contributions].sort((a, b) => b.shapley - a.shapley)
@@ -60,7 +67,7 @@ export default async function BriefPage({
   const gap = Math.round((ceiling.score - breakdown.score) * 100) / 100
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10 print:max-w-none print:px-0 print:py-0">
+    <main className="mx-auto max-w-3xl px-4 py-8 pb-28 sm:px-6 sm:py-10 sm:pb-28 print:max-w-none print:px-0 print:py-0">
       <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center print:hidden">
         <Link href={`/?s=${encodeDecisions(decisions)}`} className="inline-flex min-h-11 items-center rounded-md text-sm text-accent underline underline-offset-4">
           ← В симулятор
@@ -199,6 +206,12 @@ export default async function BriefPage({
         0,7 × среднее по городу + 0,3 × слабейший район − 1 за каждый показатель ниже 40.
         Языковая модель в расчёте не участвует.
       </footer>
+      <AiAssistant
+        decisions={decisions}
+        breakdown={breakdown}
+        complete
+        contextLabel="Разбор сценария"
+      />
     </main>
   )
 }

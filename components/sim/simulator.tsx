@@ -48,7 +48,7 @@ import { canAdd, totalCost, validateScenario } from "@/lib/engine/validate"
 import { attribute } from "@/lib/engine/attribution"
 import { cn, fmt, fmtDelta } from "@/lib/utils"
 
-import { AiPanel } from "@/components/sim/ai-panel"
+import { AiAssistant } from "@/components/sim/ai-assistant"
 import { CanvasBoundary } from "@/components/sim/canvas-boundary"
 import { DistrictsTable } from "@/components/sim/districts-table"
 import { FrontierChart } from "@/components/sim/frontier-chart"
@@ -142,7 +142,7 @@ export function Simulator({
   const visible = MEASURES.filter((m) => direction === "all" || m.direction === direction)
 
   return (
-    <div className="pb-10">
+    <div className="pb-28">
       <a href="#decisions" className="sr-only z-50 rounded-md bg-panel px-4 py-3 text-accent shadow-lg focus:fixed focus:left-4 focus:top-4 focus:not-sr-only">
         Перейти к выбору решений
       </a>
@@ -217,11 +217,12 @@ export function Simulator({
 
             <DecisionList decisions={decisions} contributions={contributions} onRemove={remove} />
 
-            <AiPanel
+            <AiAssistant
               decisions={decisions}
               breakdown={breakdown}
-              complete={isComplete}
+              complete={ready}
               onApply={setDecisions}
+              inlineEntry
             />
 
             <EventBar eventId={eventId} onChange={setEventId} breakdown={breakdown} />
