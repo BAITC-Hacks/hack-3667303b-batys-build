@@ -7,7 +7,6 @@ import type { Violation } from "@/lib/engine/validate"
 import { cn, fmt, fmtDelta } from "@/lib/utils"
 
 import { AnimatedNumber } from "@/components/ui/animated-number"
-import { ScoreFormula } from "@/components/sim/score-formula"
 
 export function Scorecard({
   breakdown,
@@ -37,7 +36,7 @@ export function Scorecard({
 
       <div className="p-5">
         {blocked ? (
-          <div className="rounded-xl border border-loss/20 bg-loss/5 p-4" role="status">
+          <div data-tour="score" className="rounded-xl border border-loss/20 bg-loss/5 p-4" role="status">
             <p className="flex items-center gap-2 text-sm font-medium text-loss">
               <AlertTriangle className="size-4" aria-hidden />
               Балл не считается
@@ -52,7 +51,7 @@ export function Scorecard({
           <>
             {/* «Было → стало» вместо одинокого числа: без точки отсчёта балл
                 ни о чём не говорит, а её глаз ищет в первую очередь. */}
-            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-2">
+            <div data-tour="score" className="flex flex-wrap items-baseline gap-x-2.5 gap-y-2">
               <span className="text-2xl font-medium text-muted tabular">{fmt(breakdown.baseScore)}</span>
               <ArrowRight className="size-5 shrink-0 self-center text-muted" aria-hidden />
               <AnimatedNumber
@@ -133,9 +132,6 @@ export function Scorecard({
           </p>
         )}
 
-        <div className="mt-4">
-          <ScoreFormula />
-        </div>
       </div>
     </div>
   )

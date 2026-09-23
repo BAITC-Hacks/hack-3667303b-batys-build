@@ -9,6 +9,7 @@ import {
   Building2,
   BusFront,
   Check,
+  CircleHelp,
   Clock3,
   FileText,
   GitCompare,
@@ -55,7 +56,9 @@ import { ChangesPanel } from "@/components/sim/changes-panel"
 import { DistrictMatrix } from "@/components/sim/district-matrix"
 import { DistrictsTable } from "@/components/sim/districts-table"
 import { FrontierChart } from "@/components/sim/frontier-chart"
+import { GuidedTour } from "@/components/sim/guided-tour"
 import { Scorecard } from "@/components/sim/scorecard"
+import { ScoreFormula } from "@/components/sim/score-formula"
 import { AnimatedNumber } from "@/components/ui/animated-number"
 import { Reveal } from "@/components/ui/reveal"
 
@@ -125,6 +128,7 @@ export function Simulator({
   const [eventId, setEventId] = useState<string | null>(initialEventId)
   const [direction, setDirection] = useState<Direction | "all">("all")
   const [tab, setTab] = useState<TabId>("changes")
+  const [tourOpen, setTourOpen] = useState(false)
 
   const event = eventId ? (EVENT_BY_ID.get(eventId) ?? null) : null
   const breakdown = useMemo(() => scoreScenario(decisions, event), [decisions, event])
@@ -147,7 +151,7 @@ export function Simulator({
   const visible = MEASURES.filter((m) => direction === "all" || m.direction === direction)
 
   return (
-    <div className="pb-28">
+    <div className="@container pb-28">
       <a href="#decisions" className="sr-only z-50 rounded-md bg-panel px-4 py-3 text-accent shadow-lg focus:fixed focus:left-4 focus:top-4 focus:not-sr-only">
         Перейти к выбору решений
       </a>
@@ -159,6 +163,7 @@ export function Simulator({
         eventId={eventId}
         decisions={decisions}
         onExample={() => setDecisions(EXAMPLE)}
+        onStartTour={() => setTourOpen(true)}
         onReset={() => {
           setDecisions([])
           setEventId(null)
@@ -167,7 +172,7 @@ export function Simulator({
 
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
         <section id="city-overview" aria-label="Город и показатели сценария" className="appear mt-4 sm:mt-6">
-          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="grid items-start gap-5 @[1024px]:grid-cols-[minmax(0,1fr)_360px] @[1280px]:grid-cols-[minmax(0,1fr)_380px]">
             <div className="min-w-0 rounded-2xl border border-line bg-panel p-3 shadow-sm sm:p-5">
               <CanvasBoundary>
                 <CityMap breakdown={breakdown} decisions={decisions} />
@@ -175,14 +180,18 @@ export function Simulator({
             </div>
             <Scorecard breakdown={breakdown} complete={isComplete} violations={violations} />
           </div>
+          {/* Раскрытие формулы занимает всю ширину и не растягивает строку карты. */}
+          <div className="mt-5">
+            <ScoreFormula />
+          </div>
           <div className="mt-5">
             <DistrictMatrix breakdown={breakdown} />
           </div>
         </section>
 
-        <Onboarding onExample={() => setDecisions(EXAMPLE)} />
+        <Onboarding onExample={() => setDecisions(EXAMPLE)} onStartTour={() => setTourOpen(true)} />
 
-        <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="mt-8 grid items-start gap-7 @[1024px]:grid-cols-[minmax(0,1fr)_360px] @[1280px]:grid-cols-[minmax(0,1fr)_380px]">
           <section id="decisions" aria-labelledby="step-1" className="appear appear-2 min-w-0">
             <StepHeading
               id="step-1"
@@ -210,7 +219,7 @@ export function Simulator({
               ))}
             </div>
 
-            <div className="stagger grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="stagger grid gap-3 @[640px]:grid-cols-2 @[1280px]:grid-cols-3">
               {visible.map((measure) => (
                 <MeasureCard
                   key={measure.id}
@@ -308,6 +317,7 @@ export function Simulator({
           <span>Учебная модель Астаны · Данные условные, последствия наглядные</span>
         </footer>
       </div>
+      {tourOpen && <GuidedTour onClose={() => setTourOpen(false)} />}
     </div>
   )
 }
@@ -328,6 +338,7 @@ function StatusBar({
   eventId,
   decisions,
   onExample,
+  onStartTour,
   onReset,
 }: {
   cost: number
@@ -337,6 +348,7 @@ function StatusBar({
   eventId: string | null
   decisions: Decision[]
   onExample: () => void
+  onStartTour: () => void
   onReset: () => void
 }) {
   const percent = Math.min(100, (cost / BUDGET) * 100)
@@ -356,7 +368,7 @@ function StatusBar({
           </div>
         </div>
 
-        <div className="order-3 min-w-[130px] flex-1 sm:order-none sm:max-w-[200px]">
+        <div data-tour="budget" className="order-3 min-w-[130px] flex-1 sm:order-none sm:max-w-[200px]">
           <div className="flex items-baseline justify-between text-xs">
             <span className="text-muted">Потрачено</span>
             <span className={cn("font-semibold tabular", over && "text-loss")}>
@@ -406,10 +418,11 @@ function StatusBar({
         </div>
 
         <div className="flex gap-1.5 max-sm:order-2 max-sm:ml-auto">
-          <ToolbarButton onClick={onExample} icon={Sparkles} label="Пример из ТЗ" />
+          <ToolbarButton onClick={onExample} icon={Sparkles} label="Пример из ТЗ" tour="example" />
           <ToolbarLink href={`/brief?${query}`} icon={FileText} label="Разбор" disabled={!ready} />
           <ToolbarLink href={`/compare?a=${encodeDecisions(decisions)}`} icon={GitCompare} label="Сравнить" disabled={!ready} />
           <ToolbarButton onClick={onReset} icon={RotateCcw} label="Сбросить" disabled={count === 0} />
+          <ToolbarButton onClick={onStartTour} icon={CircleHelp} label="Как пользоваться" />
         </div>
       </div>
     </header>
@@ -421,17 +434,20 @@ function ToolbarButton({
   icon: Icon,
   label,
   disabled,
+  tour,
 }: {
   onClick: () => void
   icon: typeof Sparkles
   label: string
   disabled?: boolean
+  tour?: string
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-tour={tour}
       title={label}
       aria-label={label}
       className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border border-line bg-panel px-2.5 py-2 text-xs font-medium transition hover:border-accent/40 hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
@@ -588,7 +604,7 @@ function DecisionList({
 }
 
 /** Правила остаются на месте, чтобы первое решение не сдвигало весь каталог. */
-function Onboarding({ onExample }: { onExample: () => void }) {
+function Onboarding({ onExample, onStartTour }: { onExample: () => void; onStartTour: () => void }) {
   return (
     <section aria-label="Как устроен симулятор" className="appear appear-1 mt-4 flex flex-col gap-4 rounded-2xl border border-[#d4e8df] bg-[#e9f4ed] p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
       <div>
@@ -606,6 +622,9 @@ function Onboarding({ onExample }: { onExample: () => void }) {
         </a>
         <button type="button" onClick={onExample} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 py-2 text-sm font-medium text-accent transition hover:bg-white/60">
           Открыть пример <ArrowRight className="size-4" aria-hidden />
+        </button>
+        <button type="button" onClick={onStartTour} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 py-2 text-sm font-medium text-accent transition hover:bg-white/60">
+          <CircleHelp className="size-4" aria-hidden /> Показать подсказки
         </button>
       </div>
     </section>
@@ -631,7 +650,7 @@ function EventBar({
         <Zap className="size-4 text-warn" aria-hidden />
         Стресс-тест
       </h3>
-      <div className="flex flex-wrap gap-1.5">
+      <div data-tour="events" className="flex flex-wrap gap-1.5">
         {CITY_EVENTS.map((cityEvent) => (
           <button
             key={cityEvent.id}
@@ -763,7 +782,7 @@ function MeasureCard({
         Лаг {measure.lag} кв. — успевает {Math.round(realizedShare * 100)}%
       </p>
 
-      <div className="mt-auto pt-4">
+      <div data-tour="measure-choice" className="mt-auto pt-4">
         {picked ? (
           <div className="flex min-h-10 items-center justify-between gap-1 border-t border-accent/15 pt-2">
             <p className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-accent">

@@ -100,6 +100,7 @@ export function ScenarioAnalysis({
       <button
         type="button"
         onClick={explain}
+        data-tour="analysis"
         disabled={!complete || isPending}
         aria-busy={isPending}
         className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-accent/25 bg-accent-soft px-3 py-2.5 text-sm font-semibold text-accent transition hover:border-accent/60 hover:bg-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
