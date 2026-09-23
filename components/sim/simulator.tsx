@@ -23,7 +23,6 @@ import {
   Sparkles,
   Table2,
   Trash2,
-  Wallet,
   Wrench,
   Zap,
 } from "lucide-react"
@@ -64,7 +63,7 @@ import { Reveal } from "@/components/ui/reveal"
 const CityMap = dynamic(() => import("@/components/city/city-map"), {
   ssr: false,
   loading: () => (
-    <div role="status" className="flex h-[460px] items-center justify-center gap-3 rounded-2xl border border-line bg-panel text-sm text-muted">
+    <div role="status" className="flex h-[clamp(320px,48svh,520px)] items-center justify-center gap-3 rounded-2xl border border-line bg-panel text-sm text-muted">
       <Building2 className="size-5 animate-pulse" aria-hidden />
       Готовим карту города…
     </div>
@@ -111,7 +110,7 @@ type TabId = "changes" | "districts" | "frontier"
 const TABS: Array<{ id: TabId; label: string; hint: string; icon: typeof Building2 }> = [
   { id: "changes", label: "Что изменилось", hint: "показатели до и после", icon: ListChecks },
   { id: "districts", label: "Районы", hint: "все показатели и их сдвиг", icon: Table2 },
-  { id: "frontier", label: "Сколько стоит балл", hint: "потолок при каждом бюджете", icon: BarChart3 },
+  { id: "frontier", label: "Цена балла", hint: "потолок при каждом бюджете", icon: BarChart3 },
 ]
 
 export function Simulator({
@@ -167,40 +166,23 @@ export function Simulator({
       />
 
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        <Onboarding onExample={() => setDecisions(EXAMPLE)} />
-
-        {/* Город идёт первым: человек должен увидеть состояние, которым
-            управляет, раньше, чем список кнопок. Карта живёт от тех же решений,
-            что и балл, поэтому любое изменение видно сразу в двух местах. */}
-        <section aria-labelledby="city-now" className="appear appear-1 mt-8">
-          <div className="mb-5 flex items-start gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-line bg-panel text-accent">
-              <Building2 className="size-4" aria-hidden />
-            </span>
-            <div>
-              <h2 id="city-now" className="text-lg font-bold leading-tight tracking-tight">
-                Астана сейчас
-              </h2>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                Высота и цвет кварталов — оценка района. Каждое принятое решение
-                добавляет на карту объекты и двигает балл.
-              </p>
-            </div>
-          </div>
-
+        <section id="city-overview" aria-label="Город и показатели сценария" className="appear mt-4 sm:mt-6">
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
-            <CanvasBoundary>
-              <CityMap breakdown={breakdown} decisions={decisions} />
-            </CanvasBoundary>
+            <div className="min-w-0 rounded-2xl border border-line bg-panel p-3 shadow-sm sm:p-5">
+              <CanvasBoundary>
+                <CityMap breakdown={breakdown} decisions={decisions} />
+              </CanvasBoundary>
+            </div>
             <Scorecard breakdown={breakdown} complete={isComplete} violations={violations} />
           </div>
-
           <div className="mt-5">
             <DistrictMatrix breakdown={breakdown} />
           </div>
         </section>
 
-        <div className="mt-10 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
+        <Onboarding onExample={() => setDecisions(EXAMPLE)} />
+
+        <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
           <section id="decisions" aria-labelledby="step-1" className="appear appear-2 min-w-0">
             <StepHeading
               id="step-1"
@@ -272,7 +254,7 @@ export function Simulator({
             hint="Три взгляда на один и тот же сценарий — переключайте вкладки."
           />
 
-          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Подробности сценария">
+          <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap" role="tablist" aria-label="Подробности сценария">
             {TABS.map((item) => {
               const Icon = item.icon
               return (
@@ -297,27 +279,27 @@ export function Simulator({
                     document.getElementById(`tab-${TABS[nextIndex].id}`)?.focus()
                   }}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition",
+                    "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md border px-1.5 py-2 text-xs font-medium transition sm:gap-2 sm:px-3 sm:text-sm",
                     tab === item.id
                       ? "border-accent/50 bg-accent-soft text-accent"
                       : "border-line bg-panel text-muted hover:bg-panel-raised hover:text-foreground",
                   )}
                 >
-                  <Icon className="size-4" aria-hidden />
+                  <Icon className="hidden size-4 shrink-0 sm:block" aria-hidden />
                   {item.label}
-                  <span className="hidden text-xs font-normal opacity-70 sm:inline">— {item.hint}</span>
+                  <span className="hidden text-xs font-normal opacity-70 lg:inline">— {item.hint}</span>
                 </button>
               )
             })}
           </div>
 
           <div id="scenario-details" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="mt-4">
-            <Reveal>
-            {tab === "changes" && <ChangesPanel breakdown={breakdown} contributions={contributions} />}
-            {tab === "districts" && <DistrictsTable breakdown={breakdown} />}
-            {tab === "frontier" && (
-              <FrontierChart currentCost={cost} currentScore={breakdown.score} valid={ready} />
-            )}
+            <Reveal key={tab}>
+              {tab === "changes" && <ChangesPanel breakdown={breakdown} contributions={contributions} />}
+              {tab === "districts" && <DistrictsTable breakdown={breakdown} />}
+              {tab === "frontier" && (
+                <FrontierChart currentCost={cost} currentScore={breakdown.score} valid={ready} />
+              )}
             </Reveal>
           </div>
         </section>
@@ -608,43 +590,23 @@ function DecisionList({
 /** Правила остаются на месте, чтобы первое решение не сдвигало весь каталог. */
 function Onboarding({ onExample }: { onExample: () => void }) {
   return (
-    <section aria-label="Как устроен симулятор" className="appear relative mt-6 overflow-hidden rounded-3xl border border-[#d4e8df] bg-[#e9f4ed] p-6 sm:p-8 lg:p-9">
-      <div aria-hidden className="pointer-events-none absolute -right-20 -top-36 size-[420px] rounded-full border-[65px] border-white/35" />
-      <div className="relative grid items-center gap-7 lg:grid-cols-[1fr_420px]">
-        <div>
-          <p className="mb-4 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-accent">
-            <MapPin className="size-3.5" aria-hidden /> Астана · Городская лаборатория
-          </p>
-          <h2 className="max-w-2xl text-[28px] font-bold leading-[1.18] tracking-tight sm:text-4xl">
-            Город меняется.<br />
-            <span className="text-accent">Начните с пяти решений.</span>
-          </h2>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-            Больше зелени, доступнее транспорт, безопаснее улицы.
-            Распределите бюджет и посмотрите, как ваши решения изменят жизнь районов.
-          </p>
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <a href="#decisions" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#066b5e]">
-              Собрать свой сценарий <ArrowDown className="size-4" aria-hidden />
-            </a>
-            <button type="button" onClick={onExample} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 py-2 text-sm font-medium text-accent transition hover:bg-white/60">
-              Открыть пример <ArrowRight className="size-4" aria-hidden />
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          {[
-            { icon: Wallet, value: BUDGET, label: "единиц бюджета", color: "bg-white/90 text-accent" },
-            { icon: Check, value: DECISION_COUNT, label: "решений за вами", color: "bg-[#fff8e5] text-social" },
-            { icon: MapPin, value: DISTRICTS.length, label: "районов города", color: "bg-[#eaf2ff] text-transport" },
-          ].map(({ icon: Icon, value, label, color }) => (
-            <div key={label} className={cn("rounded-2xl border border-white/80 px-3 py-4 sm:p-5", color)}>
-              <Icon className="mb-4 size-5" strokeWidth={1.7} aria-hidden />
-              <p className="text-3xl font-semibold tracking-tight tabular sm:text-4xl">{value}</p>
-              <p className="mt-2 text-[11px] leading-relaxed font-medium sm:text-xs">{label}</p>
-            </div>
-          ))}
-        </div>
+    <section aria-label="Как устроен симулятор" className="appear appear-1 mt-4 flex flex-col gap-4 rounded-2xl border border-[#d4e8df] bg-[#e9f4ed] p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <MapPin className="size-4 text-accent" aria-hidden /> Теперь город в ваших руках
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          {BUDGET} единиц бюджета, {DECISION_COUNT} решений, {DISTRICTS.length} районов.
+          Выберите меры ниже и следите за изменениями города.
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        <a href="#decisions" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#066b5e]">
+          Собрать свой сценарий <ArrowDown className="size-4" aria-hidden />
+        </a>
+        <button type="button" onClick={onExample} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 py-2 text-sm font-medium text-accent transition hover:bg-white/60">
+          Открыть пример <ArrowRight className="size-4" aria-hidden />
+        </button>
       </div>
     </section>
   )

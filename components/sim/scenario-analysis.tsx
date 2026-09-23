@@ -118,6 +118,13 @@ export function ScenarioAnalysis({
         </p>
       )}
 
+      {breakdown.event && (
+        <p className="mt-3 rounded-xl bg-warn/10 px-3 py-2.5 text-xs leading-relaxed text-warn">
+          Аналитик оценивает решения без стресс-теста «{breakdown.event.name}».
+          Его результаты могут отличаться от текущего балла города.
+        </p>
+      )}
+
       {stale && !isPending && (
         <p className="mt-3 text-xs leading-relaxed text-warn" role="status">
           Сценарий изменился — разбор относится к предыдущему набору. Запросите его заново.
