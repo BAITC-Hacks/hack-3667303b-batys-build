@@ -1,13 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { Canvas } from "@react-three/fiber"
-import { Html, Instance, Instances, OrbitControls, PerspectiveCamera } from "@react-three/drei"
+import { Instance, Instances } from "@react-three/drei"
 import * as THREE from "three"
 
 import { MEASURE_BY_ID, type Decision, type Direction, type DistrictId } from "@/lib/domain/city"
 import type { DistrictBreakdown, ScenarioBreakdown } from "@/lib/engine/score"
 import { ModelInstances, type CityModel, type ModelPlacement } from "./model-instances"
+import { CityCamera } from "./city-camera"
+import { CityLandscape, LANDMARKS, Landmarks, occupiesLandmarkSite, type LandmarkId } from "./landmarks"
+import { CityLabelLayer, ProjectCityLabels, type CityLabel } from "./city-labels"
 
 /**
  * Карта города: пять кварталов, высота и цвет застройки отражают оценку района,
@@ -30,9 +33,9 @@ interface Plot {
 const PLOTS: Plot[] = [
   { id: "esil", x: -7.5, z: -5.5, width: 13, depth: 9 },
   { id: "almaty", x: 7.5, z: -5.5, width: 13, depth: 9 },
-  { id: "saryarka", x: -7.5, z: 4.5, width: 13, depth: 9 },
-  { id: "baikonur", x: 7.5, z: 4.5, width: 13, depth: 9 },
-  { id: "nura", x: 0, z: 13, width: 28, depth: 6 },
+  { id: "saryarka", x: -7.5, z: 4, width: 13, depth: 8 },
+  { id: "baikonur", x: 7.5, z: 4, width: 13, depth: 8 },
+  { id: "nura", x: 0, z: 14, width: 28, depth: 6 },
 ]
 
 const PLOT_BY_ID = new Map(PLOTS.map((plot) => [plot.id, plot]))
@@ -80,15 +83,14 @@ function buildingsFor(district: DistrictBreakdown, plot: Plot): Building[] {
       const quality = THREE.MathUtils.clamp((district.after - 45) / 20, 0, 1)
       const height = 0.6 + roll * (0.8 + quality * 3.2)
       const footprint = 0.9 + jitter(seed * 2.7) * 0.6
+      const x = plot.x - plot.width / 2 + stepX * (col + 0.5) + (jitter(seed * 3.1) - 0.5) * 0.4
+      const z = plot.z - plot.depth / 2 + stepZ * (row + 0.5) + (jitter(seed * 5.3) - 0.5) * 0.4
+      if (occupiesLandmarkSite(x, z, footprint * 0.72)) continue
 
       buildings.push({
         key: `${plot.id}-${col}-${row}`,
         model: BUILDING_MODELS[Math.floor(jitter(seed * 4.3) * BUILDING_MODELS.length)],
-        position: [
-          plot.x - plot.width / 2 + stepX * (col + 0.5) + (jitter(seed * 3.1) - 0.5) * 0.4,
-          0,
-          plot.z - plot.depth / 2 + stepZ * (row + 0.5) + (jitter(seed * 5.3) - 0.5) * 0.4,
-        ],
+        position: [x, 0, z],
         scale: [footprint, height, footprint],
         rotation: [0, Math.floor(jitter(seed * 8.3) * 4) * Math.PI / 2, 0],
         color,
@@ -133,14 +135,13 @@ function propsFor(decisions: Decision[]): Prop[] {
       const count = measure.scope === "city" ? 3 : 6
       for (let i = 0; i < count; i++) {
         const seed = index * 31 + i * 7 + plot.x
+        const x = plot.x - plot.width / 2 + jitter(seed) * plot.width
+        const z = plot.z - plot.depth / 2 + jitter(seed * 1.7) * plot.depth
+        if (occupiesLandmarkSite(x, z, 1.1)) continue
         props.push({
           key: `${decision.measureId}-${plot.id}-${i}`,
           kind,
-          position: [
-            plot.x - plot.width / 2 + jitter(seed) * plot.width,
-            0,
-            plot.z - plot.depth / 2 + jitter(seed * 1.7) * plot.depth,
-          ],
+          position: [x, 0, z],
         })
       }
     }
@@ -158,6 +159,47 @@ export default function CityMap({
 }) {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
   const [view, setView] = useState<"orbit" | "top">("orbit")
+  const [selected, setSelected] = useState<LandmarkId | null>(null)
+  const [cameraRevision, setCameraRevision] = useState(0)
+  const landmark = LANDMARKS.find((item) => item.id === selected)
+  const labelRefs = useRef(new Map<string, HTMLDivElement>())
+
+  const focusLandmark = (id: LandmarkId) => {
+    setSelected(id)
+    setView("orbit")
+    setCameraRevision((revision) => revision + 1)
+  }
+
+  const labels: CityLabel[] = [
+    ...(selected ? [] : breakdown.districts.flatMap((district): CityLabel[] => {
+      const plot = PLOT_BY_ID.get(district.id)
+      if (!plot) return []
+      return [{
+        id: district.id,
+        position: [plot.x, 5.4, plot.z],
+        content: (
+          <span className={`rounded-md border border-white/15 bg-slate-950/85 px-2 py-1 text-xs font-semibold ${district.isWeakest ? "text-amber-300" : "text-slate-100"}`}>
+            {district.name} {district.after.toFixed(1)}
+          </span>
+        ),
+      }]
+    })),
+    ...LANDMARKS.filter((item) => !selected || item.id === selected).map((item): CityLabel => ({
+      id: item.id,
+      position: [item.position[0], item.height + 0.6, item.position[2]],
+      content: (
+        <button
+          type="button"
+          onClick={() => focusLandmark(item.id)}
+          aria-label={`Приблизить: ${item.name}`}
+          aria-pressed={selected === item.id}
+          className="pointer-events-auto rounded-full border border-amber-200/30 bg-slate-950/85 px-2.5 py-1 text-xs font-semibold text-amber-100 shadow-lg transition hover:border-amber-200 hover:bg-slate-900"
+        >
+          {item.name}
+        </button>
+      ),
+    })),
+  ]
 
   const buildings = useMemo(
     () =>
@@ -180,7 +222,10 @@ export default function CityMap({
   return (
     <section className="mt-6" aria-label="Карта города">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Город</h2>
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Астана</h2>
+          <p className="text-xs text-muted">Город ваших решений</p>
+        </div>
         <div className="flex gap-2">
           <button
             type="button"
@@ -200,64 +245,75 @@ export default function CityMap({
         </div>
       </div>
 
-      <div className="h-[460px] overflow-hidden rounded-lg border border-line bg-panel">
+      <div className="relative h-[540px] overflow-hidden rounded-xl border border-line bg-[#111e29] sm:h-[600px]">
+        <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 backdrop-blur-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200/80">Городские ориентиры</p>
+          <p className="mt-1 text-sm font-medium text-slate-100">{landmark?.name ?? "Силуэты столицы"}</p>
+          <p className="mt-0.5 text-xs text-slate-400">{landmark?.caption ?? "Выберите место для крупного плана"}</p>
+        </div>
         <Canvas
-          shadows
+          shadows={{ type: THREE.PCFShadowMap }}
           dpr={[1, 1.5]}
           frameloop="demand"
           gl={{ antialias: true, preserveDrawingBuffer: true }}
           onCreated={({ gl }) => setCanvas(gl.domElement)}
         >
-          <color attach="background" args={["#1b1d22"]} />
-          <ambientLight intensity={1.1} />
+          <color attach="background" args={["#111e29"]} />
+          <ambientLight intensity={0.85} />
+          <hemisphereLight args={["#bfdced", "#344950", 1.1]} />
           <directionalLight
             castShadow
-            position={[14, 20, 8]}
-            intensity={2}
-            shadow-mapSize={[1024, 1024]}
-            shadow-camera-left={-26}
-            shadow-camera-right={26}
-            shadow-camera-top={26}
-            shadow-camera-bottom={-26}
+            position={[-14, 26, 14]}
+            color="#fff0cf"
+            intensity={2.3}
+            shadow-mapSize={[2048, 2048]}
+            shadow-camera-left={-30}
+            shadow-camera-right={30}
+            shadow-camera-top={30}
+            shadow-camera-bottom={-30}
+            shadow-camera-far={80}
+            shadow-normalBias={0.035}
           />
-
-          {view === "top" ? (
-            <PerspectiveCamera makeDefault position={[0, 42, 6]} fov={45} />
-          ) : (
-            <PerspectiveCamera makeDefault position={[0, 22, 30]} fov={50} />
-          )}
-          <OrbitControls
-            makeDefault
-            target={[0, 0, 3]}
-            maxPolarAngle={Math.PI / 2.05}
-            minDistance={12}
-            maxDistance={70}
-            enableRotate={view === "orbit"}
-          />
-
-          <Ground />
+          <CityCamera view={view} focus={landmark?.position ?? null} revision={cameraRevision} />
+          <CityLandscape />
           <Plots districts={breakdown.districts} />
           <Buildings buildings={buildings} />
           <Props props={props} />
-          <Labels districts={breakdown.districts} />
+          <Landmarks selected={selected} />
+          <ProjectCityLabels labels={labels} labelRefs={labelRefs} />
         </Canvas>
+        <CityLabelLayer labels={labels} labelRefs={labelRefs} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2" aria-label="Городские ориентиры">
+        <button
+          type="button"
+          onClick={() => { setSelected(null); setView("orbit"); setCameraRevision((revision) => revision + 1) }}
+          aria-pressed={selected === null}
+          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${selected === null ? "border-amber-200/40 bg-amber-200/10 text-amber-200" : "border-line text-muted hover:text-foreground"}`}
+        >
+          Весь город
+        </button>
+        {LANDMARKS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => focusLandmark(item.id)}
+            aria-pressed={selected === item.id}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${selected === item.id ? "border-amber-200/40 bg-amber-200/10 text-amber-200" : "border-line text-muted hover:text-foreground"}`}
+          >
+            {item.name}
+          </button>
+        ))}
       </div>
 
       <p className="mt-2 text-xs text-muted">
         Высота и цвет застройки отражают оценку района: красный — ниже 45, зелёный — выше 65.
         Предметы на земле появляются за принятые меры: деревья за экологию, остановки за
         транспорт, корпуса за соцсферу, фонари за безопасность, люки за городские сервисы.
+        Памятники и набережная — постоянные ориентиры. Планировка условная.
       </p>
     </section>
-  )
-}
-
-function Ground() {
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 3]} receiveShadow>
-      <planeGeometry args={[60, 48]} />
-      <meshStandardMaterial color="#2a2d33" />
-    </mesh>
   )
 }
 
@@ -386,43 +442,3 @@ function PropPrimitives({ kind, items }: { kind: Prop["kind"]; items: Prop[] }) 
   )
 }
 
-/**
- * Подписи районов сделаны через Html, а не через drei Text: троика тянет шрифт
- * из сети и не гарантирует кириллицу, а DOM-подпись рисуется всегда и наследует
- * шрифт страницы.
- */
-function Labels({ districts }: { districts: DistrictBreakdown[] }) {
-  return (
-    <>
-      {districts.map((district) => {
-        const plot = PLOT_BY_ID.get(district.id)
-        if (!plot) return null
-        return (
-          <Html
-            key={district.id}
-            position={[plot.x, 5.4, plot.z]}
-            center
-            distanceFactor={26}
-            zIndexRange={[10, 0]}
-            style={{ pointerEvents: "none" }}
-          >
-            <div
-              style={{
-                whiteSpace: "nowrap",
-                borderRadius: 6,
-                padding: "2px 8px",
-                fontSize: 13,
-                fontWeight: 600,
-                color: district.isWeakest ? "#f0a23c" : "#ececed",
-                background: "rgba(16, 18, 22, 0.78)",
-                border: "1px solid rgba(255,255,255,0.12)",
-              }}
-            >
-              {district.name} {district.after.toFixed(1)}
-            </div>
-          </Html>
-        )
-      })}
-    </>
-  )
-}

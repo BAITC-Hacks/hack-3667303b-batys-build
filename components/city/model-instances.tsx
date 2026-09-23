@@ -14,6 +14,10 @@ export type CityModel =
   | "civic-building"
   | "streetlight"
   | "utility-cover"
+  | "baiterek"
+  | "khan-shatyr"
+  | "peace-pyramid"
+  | "nur-alem"
 
 export interface ModelPlacement {
   key: string
