@@ -220,11 +220,11 @@ export default function CityMap({
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-line bg-panel p-4 shadow-sm sm:p-5" aria-label="Карта города">
+    <section aria-label="Карта города">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Город ваших решений</h2>
-          <p className="mt-1 text-xs text-muted">Астана · исследуйте изменения на карте</p>
+          <p className="mt-1 text-xs text-muted">Астана · интерактивная карта</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -245,11 +245,11 @@ export default function CityMap({
         </div>
       </div>
 
-      <div className="relative h-[540px] overflow-hidden rounded-2xl border border-[#d4e6e3] bg-[#e5f1ef] sm:h-[600px]">
+      <div className="relative h-[clamp(320px,48svh,520px)] overflow-hidden rounded-2xl border border-[#d4e6e3] bg-[#e5f1ef]">
         <div className="pointer-events-none absolute left-3 right-3 top-3 z-20 w-fit max-w-[calc(100%-1.5rem)] rounded-xl border border-white/80 bg-white/90 px-3.5 py-3 shadow-sm backdrop-blur-sm sm:left-4 sm:top-4">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">Городские ориентиры</p>
           <p className="mt-1 text-sm font-semibold text-foreground">{landmark?.name ?? "Силуэты столицы"}</p>
-          <p className="mt-1 text-xs text-muted">{landmark?.caption ?? "Выберите место для крупного плана"}</p>
+          <p className={`mt-1 text-xs text-muted ${landmark ? "" : "hidden sm:block"}`}>{landmark?.caption ?? "Выберите место для крупного плана"}</p>
         </div>
         <Canvas
           shadows={{ type: THREE.PCFShadowMap }}
