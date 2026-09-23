@@ -179,14 +179,14 @@ export function Simulator({
 
             <DecisionList decisions={decisions} contributions={contributions} onRemove={remove} />
 
-            <EventBar eventId={eventId} onChange={setEventId} breakdown={breakdown} />
-
             <AiPanel
               decisions={decisions}
               breakdown={breakdown}
               complete={isComplete}
               onApply={setDecisions}
             />
+
+            <EventBar eventId={eventId} onChange={setEventId} breakdown={breakdown} />
           </aside>
         </div>
 
