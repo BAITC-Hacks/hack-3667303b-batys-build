@@ -17,6 +17,10 @@ const requestSchema = z.object({
  * Полный перебор пространства решений. Вынесен в маршрут, потому что занимает
  * секунды процессорного времени — в браузере это подвесило бы интерфейс.
  */
+/** Полный перебор — это секунды процессорного времени, лимит по умолчанию мал. */
+export const runtime = "nodejs"
+export const maxDuration = 60
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const parsed = requestSchema.safeParse(body)

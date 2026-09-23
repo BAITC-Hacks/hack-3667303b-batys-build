@@ -11,6 +11,14 @@ const requestSchema = z.object({
 })
 
 /** Агент-советник: планирует модель, считает движок. */
+/**
+ * Агент делает до четырёх обращений к модели и между ними гоняет перебор,
+ * поэтому запрос легко выходит за стандартный лимит бессерверной функции.
+ * Держим узел Node — перебор считает процессор, а неedge-рантайм.
+ */
+export const runtime = "nodejs"
+export const maxDuration = 60
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const parsed = requestSchema.safeParse(body)
