@@ -68,18 +68,54 @@ const TOOLS: ToolDefinition[] = [
     function: {
       name: "optimize",
       description:
-        "Найти лучшие возможные сценарии полным перебором при заданных ограничениях. Используй это вместо собственных догадок о том, какой набор сильнее.",
+        "Найти лучшие возможные сценарии полным перебором при заданных ограничениях. " +
+        "Используй это вместо собственных догадок о том, какой набор сильнее. " +
+        "Перебор охватывает всё пространство решений, поэтому его ответ точен, а не приблизителен.",
       parameters: {
         type: "object",
         properties: {
           budget: { type: "number", description: `Потолок расходов, по умолчанию ${BUDGET}.` },
-          include: { ...decisionsParameter, description: "Решения, которые обязаны войти в сценарий." },
+          include: {
+            ...decisionsParameter,
+            description:
+              "Решения, которые ОБЯЗАНЫ остаться в сценарии. Перебор подберёт только недостающие до пяти. " +
+              "Если передать сюда все пять решений, перебирать будет нечего и вернётся тот же самый набор — " +
+              "так делать нельзя. Чтобы найти улучшение, передай сюда не больше трёх мер или не передавай ничего.",
+          },
           exclude: {
             type: "array",
             description: "Мероприятия, которые запрещено использовать.",
             items: { type: "string", enum: MEASURES.map((m) => m.id) },
           },
           limit: { type: "number", description: "Сколько лучших вариантов вернуть, максимум 5." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "suggest_improvement",
+      description:
+        "Подобрать сценарий лучше текущего. Это правильный инструмент для вопроса «как улучшить». " +
+        "По умолчанию перебирает всё пространство решений и ничего не фиксирует, поэтому находит настоящий максимум. " +
+        "Возвращает варианты вместе с deltaVsCurrent — приростом относительно текущего набора пользователя.",
+      parameters: {
+        type: "object",
+        properties: {
+          keep: {
+            type: "array",
+            description:
+              "Идентификаторы мер из текущего набора, которые пользователь просил сохранить. " +
+              "Обычно пустой: чем меньше зафиксировано, тем лучше найденный вариант.",
+            items: { type: "string", enum: MEASURES.map((m) => m.id) },
+          },
+          budget: { type: "number", description: `Потолок расходов, по умолчанию ${BUDGET}.` },
+          exclude: {
+            type: "array",
+            description: "Меры, которые запрещено использовать — например, от которых пользователь хочет отказаться.",
+            items: { type: "string", enum: MEASURES.map((m) => m.id) },
+          },
         },
       },
     },
@@ -91,7 +127,12 @@ interface ToolOutcome {
   summary: string
 }
 
-function runTool(name: string, args: Record<string, unknown>): unknown {
+/**
+ * Инструменты знают текущий сценарий пользователя и сами сравнивают с ним
+ * найденные варианты. Так модель физически не может выдать набор хуже текущего
+ * за улучшение: рядом с каждым результатом стоит deltaVsCurrent.
+ */
+function runTool(name: string, args: Record<string, unknown>, current: Decision[]): unknown {
   switch (name) {
     case "score_scenario": {
       const decisions = decisionsSchema.parse(args.decisions) as Decision[]
@@ -123,8 +164,12 @@ function runTool(name: string, args: Record<string, unknown>): unknown {
         exclude: Array.isArray(args.exclude) ? (args.exclude as never[]) : undefined,
         limit: Math.min(typeof args.limit === "number" ? args.limit : 3, 5),
       })
+      const currentScore = validateScenario(current).length ? null : scoreScenario(current).score
+
       return results.map((result) => {
         const breakdown = scoreScenario(result.decisions)
+        const deltaVsCurrent =
+          currentScore === null ? null : Math.round((breakdown.score - currentScore) * 100) / 100
         return {
           score: breakdown.score,
           delta: breakdown.delta,
@@ -133,8 +178,28 @@ function runTool(name: string, args: Record<string, unknown>): unknown {
           raw: result.decisions,
           weakest: breakdown.weakest,
           criticalCount: breakdown.criticalCount,
+          currentScore,
+          deltaVsCurrent,
+          // Сравнение с текущим набором пользователя: ниже нуля — это не улучшение.
+          isBetterThanCurrent: deltaVsCurrent === null ? null : deltaVsCurrent > 0,
         }
       })
+    }
+    case "suggest_improvement": {
+      // keep ссылается на текущий набор пользователя, поэтому зажать перебор
+      // сильнее, чем просил пользователь, здесь невозможно.
+      const keep = Array.isArray(args.keep) ? (args.keep as string[]) : []
+      const include = current.filter((decision) => keep.includes(decision.measureId))
+      return runTool(
+        "optimize",
+        {
+          budget: args.budget,
+          exclude: args.exclude,
+          include: include.length ? include : undefined,
+          limit: 3,
+        },
+        current,
+      )
     }
     default:
       return { error: `Неизвестный инструмент ${name}` }
@@ -152,7 +217,13 @@ const SYSTEM = [
   "",
   "КРИТИЧЕСКОЕ ПРАВИЛО: ты не считаешь числа сам. Любой балл, прирост или сравнение получай вызовом инструмента.",
   "Не называй ни одной цифры, которой нет в ответе инструмента. Если нужно сравнить два набора — посчитай оба через score_scenario.",
-  "Если спрашивают «как улучшить» или «какой набор лучше» — вызови optimize, а не придумывай ответ.",
+  "Вопрос «как улучшить» решается инструментом suggest_improvement, а не собственными рассуждениями.",
+  "Вызывай suggest_improvement с пустым keep, если пользователь не просил ничего сохранить: так найдётся настоящий максимум.",
+  "optimize нужен только для особых условий вроде «а если совсем без ЛРТ» или «а если бюджет всего 70».",
+  "Предлагая замену, прямо скажи, какие меры уходят, какие приходят и сколько балла это даёт против текущего набора.",
+  "У каждого варианта из optimize есть deltaVsCurrent — насколько он лучше текущего набора пользователя.",
+  "Ни при каких условиях не предлагай вариант с deltaVsCurrent меньше или равным нулю: это не улучшение.",
+  "Если все найденные варианты не лучше текущего — так и скажи: сценарий уже оптимален при этих ограничениях.",
   "Отвечай по-русски, коротко и по делу: 3–6 предложений, без списков длиннее четырёх пунктов.",
 ].join("\n")
 
@@ -200,10 +271,17 @@ export async function askAgent(question: string, decisions: Decision[]): Promise
       let output: unknown
       try {
         const args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>
-        output = runTool(call.function.name, args)
-        if (call.function.name === "optimize" && Array.isArray(output) && output.length) {
-          const first = output[0] as { raw?: Decision[] }
-          if (first.raw) suggestion = first.raw
+        output = runTool(call.function.name, args, decisions)
+        if (
+          (call.function.name === "optimize" || call.function.name === "suggest_improvement") &&
+          Array.isArray(output) &&
+          output.length
+        ) {
+          // Предлагаем применить только то, что действительно лучше текущего набора.
+          const better = (output as Array<{ raw?: Decision[]; isBetterThanCurrent?: boolean | null }>).find(
+            (item) => item.raw && item.isBetterThanCurrent !== false,
+          )
+          if (better?.raw) suggestion = better.raw
         }
       } catch (error) {
         // Кривые аргументы не роняют диалог: модель получает причину и пробует снова.
@@ -223,9 +301,15 @@ export async function askAgent(question: string, decisions: Decision[]): Promise
 }
 
 function describeOutcome(name: string, output: unknown): string {
-  if (name === "optimize" && Array.isArray(output) && output.length) {
-    const best = output[0] as { score?: number; cost?: number }
-    return `перебор дал лучший балл ${best.score} при расходах ${best.cost}`
+  if ((name === "optimize" || name === "suggest_improvement") && Array.isArray(output) && output.length) {
+    const best = output[0] as { score?: number; cost?: number; deltaVsCurrent?: number | null }
+    const comparison =
+      typeof best.deltaVsCurrent === "number"
+        ? best.deltaVsCurrent > 0
+          ? `, это на ${best.deltaVsCurrent} лучше текущего`
+          : `, это не лучше текущего (${best.deltaVsCurrent})`
+        : ""
+    return `перебор дал лучший балл ${best.score} при расходах ${best.cost}${comparison}`
   }
   if (typeof output === "object" && output !== null) {
     const record = output as Record<string, unknown>

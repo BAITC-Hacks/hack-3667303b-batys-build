@@ -91,6 +91,22 @@ export function describeScenario(
   }
 }
 
+/**
+ * Кэш разборов на время жизни процесса.
+ *
+ * Движок детерминированный: один и тот же набор решений всегда даёт один и тот же
+ * расчёт, значит и объяснение к нему можно не запрашивать повторно. На демонстрации
+ * это убирает задержку при возврате к уже показанному сценарию и не тратит квоту.
+ */
+const cache = new Map<string, Explanation>()
+const CACHE_LIMIT = 200
+
+const cacheKey = (breakdown: ScenarioBreakdown): string =>
+  JSON.stringify([
+    breakdown.decisions.map((d) => `${d.measureId}:${d.district}`),
+    breakdown.event?.id ?? null,
+  ])
+
 const SYSTEM = [
   "Ты советник акима города: объясняешь управленцу последствия распределения городского бюджета.",
   "Тебе передают УЖЕ ПОСЧИТАННЫЙ разбор сценария в JSON. Все числа в нём окончательные.",
@@ -111,6 +127,10 @@ export async function explainScenario(
   const fallback = describeScenario(breakdown, contributions)
   if (!isAiConfigured()) return fallback
   if (breakdown.decisions.length !== DECISION_COUNT) return fallback
+
+  const key = cacheKey(breakdown)
+  const cached = cache.get(key)
+  if (cached) return cached
 
   const payload = {
     score: breakdown.score,
@@ -140,6 +160,18 @@ export async function explainScenario(
     "Разбор сценария:",
     JSON.stringify(payload),
     "",
+    "Что означают поля, чтобы ты их не перепутал:",
+    "score — итоговый Astana Quality of Life Score. Это ГЛАВНОЕ число.",
+    "baseScore — балл города, если не делать ничего. delta — насколько сценарий его улучшил.",
+    "cityAverage — промежуточная величина внутри формулы, средневзвешенная оценка районов.",
+    "Score и cityAverage НЕЛЬЗЯ сравнивать между собой: это разные величины, а не «стало хуже среднего».",
+    "Score всегда ниже cityAverage, потому что из него вычитают вклад слабейшего района и штрафы.",
+    "Сравнивать score имеет смысл только с baseScore.",
+    "contributions[].shapley — вклад меры в прирост; perUnit — прирост на единицу бюджета.",
+    "realized — доля эффекта меры, которая успевает сработать за горизонт из-за лага.",
+    "",
+    "В summary обязательно назови score и delta к базе. Не выдумывай сравнений, которых нет в данных.",
+    "",
     "Верни только JSON без markdown в таком виде:",
     '{"summary": "...", "strengths": ["..."], "risks": ["..."], "tradeoff": "..."}',
     "summary — 2–3 предложения про итог и цену решения.",
@@ -164,7 +196,10 @@ export async function explainScenario(
       console.warn("[ai] ответ не по контракту, отдаём детерминированный разбор:", result.content?.slice(0, 300))
       return fallback
     }
-    return { ...parsed, source: "ai" }
+    const explanation: Explanation = { ...parsed, source: "ai" }
+    if (cache.size >= CACHE_LIMIT) cache.clear()
+    cache.set(key, explanation)
+    return explanation
   } catch (error) {
     console.warn("[ai] объяснение осталось детерминированным:", error)
     return fallback

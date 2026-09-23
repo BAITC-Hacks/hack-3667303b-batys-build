@@ -25,6 +25,7 @@ const TOOL_LABELS: Record<string, string> = {
   score_scenario: "расчёт балла",
   validate_scenario: "проверка правил",
   optimize: "перебор сценариев",
+  suggest_improvement: "поиск улучшения",
 }
 
 const SUGGESTIONS = [

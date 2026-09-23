@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test \"lib/**/*.test.ts\""
+    "test": "tsx --test \"lib/**/*.test.ts\"",
+    "ai:check": "tsx scripts/ai-check.ts"
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.2.10",
