@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
-import { FileText, RotateCcw, Sparkles, Trash2, Zap } from "lucide-react"
+import { FileText, GitCompare, RotateCcw, Sparkles, Trash2, Zap } from "lucide-react"
 
 import {
   BUDGET,
@@ -113,6 +113,17 @@ export function Simulator({
           >
             <FileText className="size-4" aria-hidden />
             Разбор для защиты
+          </a>
+          <a
+            href={`/compare?a=${encodeDecisions(decisions)}${eventId ? `&event=${eventId}` : ""}`}
+            aria-disabled={!isComplete}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-md border border-line bg-panel px-3 py-2 text-sm font-medium transition hover:bg-panel-raised",
+              !isComplete && "pointer-events-none opacity-40",
+            )}
+          >
+            <GitCompare className="size-4" aria-hidden />
+            Сравнить
           </a>
           <button
             type="button"

@@ -1,0 +1,235 @@
+import Link from "next/link"
+
+import { DISTRICTS, MEASURE_BY_ID } from "@/lib/domain/city"
+import { decodeDecisions } from "@/lib/domain/encode"
+import { EVENT_BY_ID } from "@/lib/domain/events"
+import { attribute } from "@/lib/engine/attribution"
+import { scoreScenario, type ScenarioBreakdown } from "@/lib/engine/score"
+import { validateScenario } from "@/lib/engine/validate"
+import { cn, fmt, fmtDelta } from "@/lib/utils"
+
+import { CompareForm } from "@/components/sim/compare-form"
+
+/**
+ * Сравнение двух сценариев — например, наборов двух команд.
+ *
+ * Базы данных нет, поэтому сценарий целиком лежит в ссылке: командам достаточно
+ * обменяться адресами. Расчёт детерминированный, так что у обеих сторон
+ * получаются одинаковые числа — сравнивать можно без доверия друг к другу.
+ */
+
+interface Side {
+  label: string
+  code: string
+  breakdown: ScenarioBreakdown | null
+  error: string | null
+}
+
+function build(code: string | undefined, label: string, eventId: string | undefined): Side {
+  if (!code) return { label, code: "", breakdown: null, error: null }
+  const decisions = decodeDecisions(code)
+  const violations = validateScenario(decisions)
+  if (violations.length) {
+    return { label, code, breakdown: null, error: violations[0].message }
+  }
+  const event = eventId ? (EVENT_BY_ID.get(eventId) ?? null) : null
+  return { label, code, breakdown: scoreScenario(decisions, event), error: null }
+}
+
+export default async function ComparePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ a?: string; b?: string; event?: string }>
+}) {
+  const params = await searchParams
+  const left = build(params.a, "Сценарий A", params.event)
+  const right = build(params.b, "Сценарий B", params.event)
+  const both = left.breakdown && right.breakdown ? ([left.breakdown, right.breakdown] as const) : null
+
+  return (
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Сравнение сценариев</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted">
+            Расчёт детерминированный, поэтому у обеих команд получаются одинаковые числа.
+            Достаточно обменяться ссылками — сценарий целиком лежит в адресе страницы.
+          </p>
+        </div>
+        <Link href="/" className="shrink-0 text-sm text-accent underline underline-offset-4">
+          ← В симулятор
+        </Link>
+      </div>
+
+      <CompareForm initialA={params.a ?? ""} initialB={params.b ?? ""} />
+
+      {both && (
+        <>
+          <section className="mt-6 grid gap-4 sm:grid-cols-2">
+            {[left, right].map((side) => {
+              const breakdown = side.breakdown!
+              const other = side === left ? right.breakdown! : left.breakdown!
+              const wins = breakdown.score > other.score
+              const draw = breakdown.score === other.score
+              return (
+                <div
+                  key={side.label}
+                  className={cn(
+                    "rounded-lg border p-4",
+                    wins ? "border-gain/50 bg-gain/5" : "border-line bg-panel",
+                  )}
+                >
+                  <div className="flex items-baseline justify-between">
+                    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                      {side.label}
+                    </h2>
+                    {!draw && (
+                      <span className={cn("text-xs font-semibold", wins ? "text-gain" : "text-muted")}>
+                        {wins ? "впереди" : `отстаёт на ${fmt(other.score - breakdown.score)}`}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-3xl font-bold tabular">{fmt(breakdown.score)}</p>
+                  <p className="text-xs text-muted tabular">
+                    {fmtDelta(breakdown.delta)} к базе · потрачено {breakdown.cost} ·
+                    слабейший {breakdown.weakest.name} {fmt(breakdown.weakest.value)} ·
+                    критических {breakdown.criticalCount}
+                  </p>
+                  <ul className="mt-3 space-y-1 text-sm">
+                    {attribute(decodeDecisions(side.code))
+                      .sort((a, b) => b.shapley - a.shapley)
+                      .map((contribution) => (
+                        <li key={contribution.measureId} className="flex justify-between gap-2">
+                          <span className="min-w-0 truncate">
+                            {contribution.measureName}
+                            <span className="text-muted"> · {contribution.district}</span>
+                          </span>
+                          <span className="shrink-0 tabular text-muted">
+                            {contribution.cost} / {fmtDelta(contribution.shapley)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )
+            })}
+          </section>
+
+          <Difference left={left} right={right} />
+
+          <section className="mt-6">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
+              Районы
+            </h2>
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-muted">
+                  <th className="py-1.5 font-medium">Район</th>
+                  <th className="py-1.5 text-right font-medium">A</th>
+                  <th className="py-1.5 text-right font-medium">B</th>
+                  <th className="py-1.5 text-right font-medium">Разница</th>
+                </tr>
+              </thead>
+              <tbody>
+                {DISTRICTS.map((district) => {
+                  const a = both[0].districts.find((d) => d.id === district.id)!
+                  const b = both[1].districts.find((d) => d.id === district.id)!
+                  const gap = Math.round((a.after - b.after) * 100) / 100
+                  return (
+                    <tr key={district.id} className="border-b border-line/50">
+                      <td className="py-1.5">{district.name}</td>
+                      <td className="py-1.5 text-right tabular">{fmt(a.after)}</td>
+                      <td className="py-1.5 text-right tabular">{fmt(b.after)}</td>
+                      <td
+                        className={cn(
+                          "py-1.5 text-right tabular",
+                          gap > 0 ? "text-gain" : gap < 0 ? "text-loss" : "text-muted",
+                        )}
+                      >
+                        {gap === 0 ? "—" : fmtDelta(gap)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-muted">
+              Положительная разница означает, что в этом районе сильнее сценарий A.
+            </p>
+          </section>
+        </>
+      )}
+
+      {(left.error || right.error) && (
+        <p className="mt-4 rounded-md border border-loss/40 bg-loss/10 p-3 text-sm text-loss">
+          {left.error ? `Сценарий A: ${left.error}. ` : ""}
+          {right.error ? `Сценарий B: ${right.error}.` : ""}
+        </p>
+      )}
+    </main>
+  )
+}
+
+/** Что именно различается в наборах: общие меры не интересны, интересны расхождения. */
+function Difference({ left, right }: { left: Side; right: Side }) {
+  const a = decodeDecisions(left.code)
+  const b = decodeDecisions(right.code)
+  const key = (measureId: string, districtId: string | null) =>
+    `${measureId}:${districtId ?? "city"}`
+
+  const bKeys = new Set(b.map((d) => key(d.measureId, d.districtId)))
+  const aKeys = new Set(a.map((d) => key(d.measureId, d.districtId)))
+
+  const onlyA = a.filter((d) => !bKeys.has(key(d.measureId, d.districtId)))
+  const onlyB = b.filter((d) => !aKeys.has(key(d.measureId, d.districtId)))
+  const shared = a.filter((d) => bKeys.has(key(d.measureId, d.districtId)))
+
+  const describe = (measureId: string, districtId: string | null) => {
+    const measure = MEASURE_BY_ID.get(measureId as never)
+    const district = DISTRICTS.find((d) => d.id === districtId)
+    return `${measure?.name ?? measureId} — ${district?.name ?? "весь город"}`
+  }
+
+  if (!onlyA.length && !onlyB.length) {
+    return (
+      <p className="mt-6 rounded-md border border-line bg-panel p-3 text-sm text-muted">
+        Наборы совпадают полностью.
+      </p>
+    )
+  }
+
+  return (
+    <section className="mt-6 grid gap-4 sm:grid-cols-3">
+      <div className="rounded-lg border border-line bg-panel p-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Только у A</h3>
+        <ul className="mt-1.5 space-y-1 text-sm">
+          {onlyA.length ? (
+            onlyA.map((d) => <li key={key(d.measureId, d.districtId)}>{describe(d.measureId, d.districtId)}</li>)
+          ) : (
+            <li className="text-muted">—</li>
+          )}
+        </ul>
+      </div>
+      <div className="rounded-lg border border-line bg-panel p-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Общее</h3>
+        <ul className="mt-1.5 space-y-1 text-sm">
+          {shared.length ? (
+            shared.map((d) => <li key={key(d.measureId, d.districtId)}>{describe(d.measureId, d.districtId)}</li>)
+          ) : (
+            <li className="text-muted">—</li>
+          )}
+        </ul>
+      </div>
+      <div className="rounded-lg border border-line bg-panel p-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Только у B</h3>
+        <ul className="mt-1.5 space-y-1 text-sm">
+          {onlyB.length ? (
+            onlyB.map((d) => <li key={key(d.measureId, d.districtId)}>{describe(d.measureId, d.districtId)}</li>)
+          ) : (
+            <li className="text-muted">—</li>
+          )}
+        </ul>
+      </div>
+    </section>
+  )
+}
